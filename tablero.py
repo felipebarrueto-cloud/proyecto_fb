@@ -4,6 +4,46 @@ import os
 RUTA_BASE = "proyecto_keyforge/"
 
 def mostrar_tablero():
+    # --- ESTILOS CSS PARA COMPACTAR ---
+    st.markdown("""
+        <style>
+            /* Reducir el tamaño del título de la métrica y el número */
+            [data-testid="stMetricValue"] {
+                font-size: 24px !important;
+                line-height: 1 !important;
+            }
+            [data-testid="stMetricLabel"] {
+                font-size: 14px !important;
+            }
+            /* Reducir espacios entre bloques (paddings) */
+            .block-container {
+                padding-top: 1rem !important;
+                padding-bottom: 0rem !important;
+            }
+            /* Reducir el margen de los encabezados h3, h2, etc */
+            h1, h2, h3 {
+                margin-top: -15px !important;
+                margin-bottom: 5px !important;
+                font-size: 18px !important;
+            }
+            /* Compactar el texto de ayuda y captions */
+            .stCaption {
+                font-size: 11px !important;
+                line-height: 1.1 !important;
+            }
+            /* Reducir espacio en los dividers */
+            hr {
+                margin: 0.5em 0px !important;
+            }
+            /* Reducir espacio entre widgets (botones, inputs) */
+            [data-testid="stVerticalBlock"] > div {
+                padding-top: 0.1rem !important;
+                padding-bottom: 0.1rem !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+def mostrar_tablero():
     # --- 1. LÓGICA DE REVELADO (CASCADA) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         if st.session_state.mazo:
@@ -47,19 +87,21 @@ def mostrar_tablero():
     # PODER TOTAL (Base + Mesa + Activa)
     poder_total_enemigo = daño_base_jefe + daño_mesa + daño_activa
 
-    # PANEL DE AMENAZA (Solo se muestra si ya se reveló al menos una carta)
+# PANEL DE AMENAZA COMPACTO
     if st.session_state.carta_activa:
         with st.container(border=True):
-            col_t, col_d = st.columns([1, 2])
+            col_t, col_d = st.columns([1, 1.5])
             with col_t:
-                st.metric("⚔️ PODER ENEMIGO TOTAL", f"{poder_total_enemigo}")
+                st.metric("⚔️ PODER TOTAL", f"{poder_total_enemigo}")
             with col_d:
-                st.write("**Desglose de Amenaza:**")
-                st.caption(f"Base Jefe: 3 | Mesa: {daño_mesa} | Carta Revelada: {daño_activa}")
+                # Usamos HTML para forzar texto pequeño y sin márgenes
+                st.markdown(f"""
+                    <div style='font-size: 12px; line-height: 1.2; color: #888;'>
+                        <b>Base:</b> 3 | <b>Mesa:</b> {daño_mesa} | <b>Revelada:</b> {daño_activa}
+                    </div>
+                """, unsafe_allow_html=True)
                 progreso = min(poder_total_enemigo / 25, 1.0)
                 st.progress(progreso)
-    else:
-        st.info("🐙 El Kraken está sumergido. Pulsa el botón para revelar la primera amenaza.")
 
     st.divider()
 
