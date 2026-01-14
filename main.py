@@ -122,3 +122,4 @@ else:
         st.session_state.llaves_jefe += 1
         st.warning("¡El Jefe ha forjado una llave!")
         st.rerun()
+
