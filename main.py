@@ -12,14 +12,15 @@ def inicializar_mazo_oficial():
     cartas_definidas = [
         # CRIATURAS (Brazos y Tentáculos)
         {"nombre": "Crushing Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 9, "img": "1.png", "efecto": "Destroyed: -3 HP al Jefe"},
-        {"nombre": "Grappling Tentacle", "cant": 4, "tipo": "CRIATURA", "defensa": 6, "img": "3.png", "efecto": "Play: Captura recursos"},
-        {"nombre": "Lashing Tentacle", "cant": 4, "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
+        {"nombre": "Grappling Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "3.png", "efecto": "Play: Captura recursos"},
+        {"nombre": "Lashing Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
         {"nombre": "Shield Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "8.png", "efecto": "Taunt"},
-        {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 12, "img": "12.png", "efecto": "Reap: Roba recursos"},
+        {"nombre": "Slippery Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "10.png", "efecto": "Taunt"},
+        {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png", "efecto": "Reap: Roba recursos"},
         
         # ARTEFACTOS
-        {"nombre": "Ascending Jet", "cant": 2, "tipo": "ARTEFACTO", "defensa": 0, "img": "38.png", "efecto": "Soporte"},
-        {"nombre": "Submerged Cave", "cant": 2, "tipo": "ARTEFACTO", "defensa": 0, "img": "40.png", "efecto": "Efecto de entorno"},
+        {"nombre": "Ascending Jet", "cant": 4, "tipo": "ARTEFACTO", "defensa": 0, "img": "38.png", "efecto": "Soporte"},
+        {"nombre": "Submerged Cave", "cant": 4, "tipo": "ARTEFACTO", "defensa": 0, "img": "40.png", "efecto": "Efecto de entorno"},
         
         # ACCIONES (Se van directo al descarte tras activar su efecto)
         {"nombre": "Beast of Dark Legend", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana recursos"},
@@ -150,3 +151,4 @@ else:
         st.session_state.recursos_jefe -= 6
         st.session_state.llaves_jefe += 1
         st.rerun()
+
