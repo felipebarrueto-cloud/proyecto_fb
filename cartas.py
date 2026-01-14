@@ -8,8 +8,17 @@ def obtener_mazo_oficial():
         {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png", "efecto": "Reap: Roba recursos"},
         {"nombre": "Lashing Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
 
-        {"nombre": "Beast of Dark Legend", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Beast of Dark Legend", "cant": 1, "tipo": "ACCION", "img": "13.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Behold Its Grandeur", "cant": 2, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Crimson Chuming", "cant": 1, "tipo": "ACCION", "img": "16.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Defend the Keyraken!", "cant": 2, "tipo": "ACCION", "img": "18.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Devour Whole", "cant": 3, "tipo": "ACCION", "img": "19.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Drag to Your Doom", "cant": 1, "tipo": "ACCION", "img": "22.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Emergence", "cant": 2, "tipo": "ACCION", "img": "23.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Into the Abyss", "cant": 1, "tipo": "ACCION", "img": "25.png", "efecto": "Jefe gana 2 recursos por llave"},
+
         {"nombre": "Crimson Chuming", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Defend the Keyraken!", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
         # ... (todas las demás cartas hasta sumar 43)
     ]
     mazo = []
