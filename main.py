@@ -10,79 +10,92 @@ if 'juego_iniciado' not in st.session_state:
     st.session_state.juego_iniciado = False
 
 if not st.session_state.juego_iniciado:
-    st.title("🐙 Rise of the Keyraken")
-    if st.button("Iniciar Batalla"):
+    st.title("🐙 Keyraken Adventure")
+    n_jug = st.number_input("Número de Jugadores", min_value=1, value=1)
+    if st.button("Empezar Batalla"):
         st.session_state.mazo = obtener_mazo_oficial()
         st.session_state.mesa = []
         st.session_state.descarte = []
         st.session_state.carta_activa = None
-        st.session_state.reserva_daño = 0
+        st.session_state.vida_jefe = 30 * n_jug
+        st.session_state.armadura_jefe = 6 # Valor inicial aproximado
         st.session_state.juego_iniciado = True
         st.rerun()
 
 else:
-    # --- INTERFAZ SUPERIOR (REVELADO) ---
-    col_jefe, col_revelar = st.columns([1, 2])
-    
-    with col_jefe:
-        # Imagen del Jefe siempre presente
-        # img_jefe = RUTA_BASE + "kf_adv_keyraken_keyraken.pdf.png"
-        if os.path.exists(img_jefe):
-            st.image(img_jefe, width=200)
-        st.write(f"🎴 Mazo: {len(st.session_state.mazo)}")
+    # --- PANEL SUPERIOR: ESTADÍSTICAS DEL JEFE ---
+    st.header("Estado del Keyraken")
+    stat_col1, stat_col2, stat_col3 = st.columns(3)
+    stat_col1.metric("HP Keyraken", f"{st.session_state.vida_jefe}")
+    stat_col2.metric("Armadura", f"{st.session_state.armadura_jefe}")
+    stat_col3.metric("Mazo Aventura", f"{len(st.session_state.mazo)} cartas")
 
-    with col_revelar:
-        if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
-            if st.session_state.mazo:
-                # Mover la anterior al tablero o descarte antes de sacar la nueva
-                if st.session_state.carta_activa:
-                    c_vieja = st.session_state.carta_activa
-                    if c_vieja['tipo'] in ["CRIATURA", "ARTEFACTO"]:
-                        c_vieja['def_actual'] = c_vieja.get('defensa', 0)
-                        st.session_state.mesa.append(c_vieja)
-                    else:
-                        st.session_state.descarte.append(c_vieja)
-                
-                # Nueva carta activa
-                st.session_state.carta_activa = st.session_state.mazo.pop(0)
-                st.rerun()
+    # --- BOTÓN DE REVELAR (CASCADA) ---
+    if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
+        if st.session_state.mazo:
+            if st.session_state.carta_activa:
+                c_v = st.session_state.carta_activa
+                if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
+                    c_v['def_actual'] = c_v.get('defensa', 0)
+                    st.session_state.mesa.append(c_v)
+                else:
+                    st.session_state.descarte.append(c_v)
+            
+            st.session_state.carta_activa = st.session_state.mazo.pop(0)
+            st.rerun()
 
-    # --- ZONA DE CARTA ACTIVA (LA REVELADA) ---
-    st.divider()
+    # --- CARTA ACTIVA REVELADA ---
     if st.session_state.carta_activa:
+        st.divider()
         c_activa = st.session_state.carta_activa
-        col_espacio1, col_img_activa, col_espacio2 = st.columns([1, 1, 1])
-        with col_img_activa:
-            ruta_activa = RUTA_BASE + c_activa['img']
-            if os.path.exists(ruta_activa):
-                st.image(ruta_activa, caption="NUEVA AMENAZA", use_container_width=True)
+        col_esp1, col_img, col_esp2 = st.columns([1, 1, 1])
+        with col_img:
+            ruta = RUTA_BASE + c_activa['img']
+            if os.path.exists(ruta):
+                st.image(ruta, caption="NUEVA AMENAZA REVELADA", use_container_width=True)
             else:
                 st.error(f"Imagen {c_activa['img']} no encontrada")
 
-    # --- TABLERO (CARRIL DE CRIATURAS EN MESA) ---
+    # --- MESA DE COMBATE (CRIATURAS Y ARTEFACTOS) ---
     st.divider()
-    st.subheader("Criaturas y Artefactos en Juego")
+    st.subheader("Amenazas en Juego")
     
     if st.session_state.mesa:
-        # Mostramos las cartas en el carril inferior
-        filas = st.columns(6)
+        filas = st.columns(5)
         for i, c in enumerate(st.session_state.mesa):
-            with filas[i % 6]:
-                ruta_mesa = RUTA_BASE + c['img']
-                if os.path.exists(ruta_mesa):
-                    st.image(ruta_mesa, use_container_width=True)
-                
-                # Gestión de Criaturas (Daño)
-                if c['tipo'] == "CRIATURA":
-                    st.write(f"❤️ **{c['def_actual']} / {c['defensa']}**")
-                    # Botón pequeño para reducir vida manualmente por ahora
-                    if st.button("💥 -1 HP", key=f"dmg_{i}"):
-                        c['def_actual'] -= 1
-                        if c['def_actual'] <= 0:
-                            st.session_state.descarte.append(st.session_state.mesa.pop(i))
-                        st.rerun()
-                else:
-                    st.caption("💠 ARTEFACTO")
+            with filas[i % 5]:
+                with st.container(border=True):
+                    ruta_m = RUTA_BASE + c['img']
+                    if os.path.exists(ruta_m):
+                        st.image(ruta_m, use_container_width=True)
+                    
+                    if c['tipo'] == "CRIATURA":
+                        st.write(f"❤️ Vida: {c['def_actual']} / {c['defensa']}")
+                        # Selector de daño rápido
+                        d_atq = st.number_input("Daño recibido", min_value=0, max_value=20, key=f"atq_{i}")
+                        if st.button("Aplicar Daño", key=f"btn_{i}"):
+                            c['def_actual'] -= d_atq
+                            if c['def_actual'] <= 0:
+                                # Regla: -3 HP al Jefe cuando una criatura muere
+                                st.session_state.vida_jefe -= 3
+                                st.session_state.descarte.append(st.session_state.mesa.pop(i))
+                                st.toast(f"{c['nombre']} destruida! -3 HP al Keyraken")
+                            st.rerun()
+                    else:
+                        st.caption("💠 ARTEFACTO")
     else:
-        st.info("No hay cartas en el tablero todavía.")
+        st.info("No hay criaturas ni artefactos en mesa.")
+
+    # --- ATAQUE DIRECTO AL KEYRAKEN ---
+    st.divider()
+    with st.expander("Ataque Directo al Jefe"):
+        d_directo = st.number_input("Daño total al Jefe:", min_value=0)
+        if st.button("Atacar al Keyraken"):
+            if d_directo > st.session_state.armadura_jefe:
+                real_dmg = d_directo - st.session_state.armadura_jefe
+                st.session_state.vida_jefe -= real_dmg
+                st.success(f"Infligiste {real_dmg} de daño!")
+            else:
+                st.warning("La armadura absorbió todo el daño.")
+            st.rerun()
 
