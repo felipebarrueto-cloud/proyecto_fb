@@ -8,10 +8,8 @@ def obtener_mazo_oficial():
         {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png", "efecto": "Reap: Roba recursos"},
         {"nombre": "Lashing Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
 
-
-
-        
         {"nombre": "Beast of Dark Legend", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
+        {"nombre": "Crimson Chuming", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana 2 recursos por llave"},
         # ... (todas las demás cartas hasta sumar 43)
     ]
     mazo = []
