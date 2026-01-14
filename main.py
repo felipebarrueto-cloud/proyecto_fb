@@ -26,7 +26,7 @@ else:
     
     with col_jefe:
         # Imagen del Jefe siempre presente
-        img_jefe = RUTA_BASE + "kf_adv_keyraken_keyraken.pdf.png"
+        # img_jefe = RUTA_BASE + "kf_adv_keyraken_keyraken.pdf.png"
         if os.path.exists(img_jefe):
             st.image(img_jefe, width=200)
         st.write(f"🎴 Mazo: {len(st.session_state.mazo)}")
@@ -85,3 +85,4 @@ else:
                     st.caption("💠 ARTEFACTO")
     else:
         st.info("No hay cartas en el tablero todavía.")
+
