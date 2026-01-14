@@ -42,7 +42,7 @@ def mostrar_tablero():
     st.divider()
 
     # --- 3. MESA DE COMBATE (CARRIL DE CARTAS) ---
-    st.subheader("🏟️ Amenazas en la Mesa")
+    st.subheader("Criaturas en mesa")
     
     if st.session_state.mesa:
         # Mostramos las cartas en una cuadrícula de 6 columnas
