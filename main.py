@@ -2,124 +2,142 @@ import streamlit as st
 import random
 import os
 
-st.set_page_config(page_title="Keyraken Adventure", layout="wide")
+st.set_page_config(page_title="Keyraken Adventure - Combo Mode", layout="wide")
 
-# Ruta de la carpeta en tu repositorio de GitHub
 RUTA_BASE = "proyecto_keyforge/"
 
 def inicializar_mazo():
-    # Definimos el pool de cartas
-    # Nota: Aquí asociamos Crushing Arm con 1.png
     pool = [
-        {"nombre": "Crushing Arm", "tipo": "CRIATURA", "defensa": 9, "img": "1.png", "efecto": "Destroyed: Deal 3 to the Keyraken (Ignore Armor)"},
+        {"nombre": "Crushing Arm", "tipo": "CRIATURA", "defensa": 9, "img": "1.png", "efecto": "Destroyed: -3 HP al Jefe"},
         {"nombre": "Grappling Tentacle", "tipo": "CRIATURA", "defensa": 6, "img": "kf_adv_keyraken_004.png", "efecto": "Play: Captura recursos"},
-        {"nombre": "Shield Arm", "tipo": "CRIATURA", "defensa": 6, "img": "kf_adv_keyraken_008.png", "efecto": "Taunt (Protege al Jefe)"},
-        {"nombre": "Beast of Dark Legend", "tipo": "ACCION", "img": "kf_adv_keyraken_014.png", "efecto": "Jefe gana recursos por llaves"},
+        {"nombre": "Shield Arm", "tipo": "CRIATURA", "defensa": 6, "img": "kf_adv_keyraken_008.png", "efecto": "Taunt. Destroyed: -3 HP al Jefe"},
+        {"nombre": "Beast of Dark Legend", "tipo": "ACCION", "img": "kf_adv_keyraken_014.png", "efecto": "Jefe gana recursos"},
     ]
-    # Generamos las 43 cartas del mazo de aventura
-    mazo = random.choices(pool, k=43)
-    random.shuffle(mazo)
-    return mazo
+    return random.choices(pool, k=43)
+
+# --- ESTADO INICIAL ---
+if 'reserva_daño' not in st.session_state: st.session_state.reserva_daño = 0
+if 'log' not in st.session_state: st.session_state.log = []
+if 'turno' not in st.session_state: st.session_state.turno = 1
 
 if 'juego_iniciado' not in st.session_state:
     st.session_state.juego_iniciado = False
 
-# --- CONFIGURACIÓN INICIAL ---
 if not st.session_state.juego_iniciado:
-    st.title("🐙 Keyraken Adventure")
-    n_jugadores = st.number_input("Número de jugadores", min_value=1, value=1)
-    if st.button("Comenzar Partida"):
-        st.session_state.vida_max = 30 * n_jugadores
+    st.title("🐙 Configuración Keyraken")
+    n_jug = st.number_input("Jugadores", min_value=1, value=1)
+    if st.button("Empezar Batalla"):
+        st.session_state.vida_max = 30 * n_jug
         st.session_state.vida_actual = st.session_state.vida_max
         st.session_state.llaves_unforged = 3
-        st.session_state.armadura_actual = 2 * st.session_state.llaves_unforged
+        st.session_state.armadura_base = 2 * st.session_state.llaves_unforged
+        st.session_state.armadura_actual = st.session_state.armadura_base
         st.session_state.recursos_jefe = 0
         st.session_state.llaves_jefe = 0
         st.session_state.mesa = []
         st.session_state.mazo = inicializar_mazo()
         st.session_state.juego_iniciado = True
         st.rerun()
-
-# --- INTERFAZ DE JUEGO ---
 else:
-    st.title("Batalla contra el Keyraken")
-    col_jefe, col_mesa = st.columns([1, 2])
+    # --- INTERFAZ ---
+    col_jefe, col_mesa, col_log = st.columns([1, 1.5, 1])
 
     with col_jefe:
-        st.subheader("Estado del Jefe")
-        # Imagen principal del jefe
+        st.subheader(f"Turno {st.session_state.turno}")
         path_jefe = RUTA_BASE + "kf_adv_keyraken_keyraken.pdf.png"
-        if os.path.exists(path_jefe):
-            st.image(path_jefe, use_container_width=True)
+        if os.path.exists(path_jefe): st.image(path_jefe)
         
-        st.metric("Vida del Keyraken", f"{st.session_state.vida_actual} HP")
-        
-        # EFECTO VISUAL DE ARMADURA
-        color_armadura = "normal" if st.session_state.armadura_actual > 0 else "inverse"
-        if st.session_state.armadura_actual == 0:
-            st.error("¡ARMADURA DESTRUIDA! El daño va directo a la vida.")
-        
-        st.metric("Armadura Temporal", f"{st.session_state.armadura_actual}")
-        st.write(f"🔑 Llaves Jefe: {st.session_state.llaves_jefe}/3 | 💎: {st.session_state.recursos_jefe}/6")
+        st.metric("Vida Jefe", f"{st.session_state.vida_actual} HP")
+        st.metric("Armadura Temporal", f"{st.session_state.armadura_actual} / {st.session_state.armadura_base}")
+        st.write(f"🔑 Llaves: {st.session_state.llaves_jefe} | 💎: {st.session_state.recursos_jefe}")
 
     with col_mesa:
-        # Botón para revelar carta: Restaura armadura y saca carta
-        if st.button("Revelar Carta (Restaura Armadura)"):
+        st.subheader("Acciones del Jefe")
+        if st.button("🔥 Revelar Carta (Nueva Amenaza)"):
             if st.session_state.mazo:
-                # Restauramos al valor original basado en llaves
-                st.session_state.armadura_actual = 2 * st.session_state.llaves_unforged
+                st.session_state.turno += 1
+                st.session_state.armadura_base = 2 * st.session_state.llaves_unforged
+                st.session_state.armadura_actual = st.session_state.armadura_base
+                st.session_state.reserva_daño = 0 # El daño no usado se pierde al cambiar de turno
                 carta = st.session_state.mazo.pop(0)
                 if carta['tipo'] == "CRIATURA":
                     carta['def_actual'] = carta['defensa']
                     st.session_state.mesa.append(carta)
-                elif carta['tipo'] == "ACCION":
+                    st.session_state.log.append(f"T{st.session_state.turno}: Aparece {carta['nombre']}")
+                else:
                     st.session_state.recursos_jefe += 2
+                    st.session_state.log.append(f"T{st.session_state.turno}: Acción {carta['nombre']} activada")
                 st.rerun()
 
-        # Mostrar criaturas con su imagen respectiva (1.png para Crushing Arm)
-        if st.session_state.mesa:
-            st.write("### Criaturas en combate")
-            filas = st.columns(3)
-            for i, c in enumerate(st.session_state.mesa):
-                with filas[i % 3]:
-                    with st.container(border=True):
-                        # Cargar imagen de la criatura (ej: proyecto_keyforge/1.png)
-                        path_img = RUTA_BASE + c['img']
-                        if os.path.exists(path_img):
-                            st.image(path_img, use_container_width=True)
-                        
-                        st.markdown(f"**{c['nombre']}**")
-                        st.write(f"❤️ {c['def_actual']} / {c['defensa']}")
-                        
-                        dmg_c = st.number_input("Daño a criatura", min_value=0, key=f"d_{i}")
-                        if st.button("Atacar", key=f"b_{i}"):
-                            c['def_actual'] -= dmg_c
-                            if c['def_actual'] <= 0:
-                                st.session_state.vida_actual -= 3 # Daño directo al morir
-                                st.session_state.mesa.pop(i)
-                            st.rerun()
-
-    # ATAQUE AL JEFE
-    st.divider()
-    atq_total = st.number_input("Tu ataque total este turno:", min_value=0)
-    if st.button("💥 Ejecutar Ataque al Jefe"):
-        if st.session_state.armadura_actual > 0:
-            # Primero consume armadura
-            absorbido = min(atq_total, st.session_state.armadura_actual)
-            st.session_state.armadura_actual -= absorbido
-            atq_total -= absorbido
-            st.info(f"Armadura reducida en {absorbido}")
+        st.divider()
+        st.subheader("⚔️ Panel de Combate")
         
-        if atq_total > 0:
-            # El resto va a la vida
-            st.session_state.vida_actual -= atq_total
-            st.success(f"¡Daño directo al Jefe: {atq_total}!")
-        st.rerun()
+        # 1. CARGAR DAÑO
+        col_input, col_status = st.columns([1, 1])
+        with col_input:
+            nuevo_daño = st.number_input("Cargar daño total del ataque:", min_value=0, step=1, key="carga_daño")
+            if st.button("Cargar a la Reserva"):
+                st.session_state.reserva_daño += nuevo_daño
+                st.session_state.log.append(f"T{st.session_state.turno}: Cargaste {nuevo_daño} de daño.")
+                st.rerun()
+        
+        with col_status:
+            st.info(f"Daño Disponible: **{st.session_state.reserva_daño}**")
+            if st.button("Vaciar Reserva"):
+                st.session_state.reserva_daño = 0
+                st.rerun()
 
-    # Regla de llaves del jefe
+        # 2. SELECTOR DE OBJETIVOS (Solo si hay daño en reserva)
+        if st.session_state.reserva_daño > 0:
+            nombres_criaturas = [f"Criatura: {c['nombre']} (HP:{c['def_actual']})" for c in st.session_state.mesa]
+            objetivo = st.selectbox("¿A quién aplicar el daño?", ["El Keyraken"] + nombres_criaturas)
+            
+            puntos_a_usar = st.number_input("Puntos de daño a usar:", min_value=1, max_value=st.session_state.reserva_daño, value=min(st.session_state.reserva_daño, 1))
+
+            if st.button("Aplicar Daño"):
+                if objetivo == "El Keyraken":
+                    # Lógica armadura -> vida
+                    puntos_restantes = puntos_a_usar
+                    if st.session_state.armadura_actual > 0:
+                        abs = min(puntos_restantes, st.session_state.armadura_actual)
+                        st.session_state.armadura_actual -= abs
+                        puntos_restantes -= abs
+                        st.session_state.log.append(f"T{st.session_state.turno}: {abs} de armadura reducida.")
+                    
+                    if puntos_restantes > 0:
+                        st.session_state.vida_actual -= puntos_restantes
+                        st.session_state.log.append(f"T{st.session_state.turno}: {puntos_restantes} de vida restada al Jefe.")
+                
+                else:
+                    # Atacar criatura
+                    idx = nombres_criaturas.index(objetivo)
+                    criatura = st.session_state.mesa[idx]
+                    daño_real = min(puntos_a_usar, criatura['def_actual'])
+                    criatura['def_actual'] -= puntos_a_usar # Aplicamos todo el daño elegido
+                    
+                    st.session_state.log.append(f"T{st.session_state.turno}: {puntos_a_usar} daño a {criatura['nombre']}")
+                    
+                    if criatura['def_actual'] <= 0:
+                        st.session_state.vida_actual -= 3
+                        st.session_state.log.append(f"T{st.session_state.turno}: {criatura['nombre']} DESTRUIDA (-3 HP al Jefe)")
+                        st.session_state.mesa.pop(idx)
+                
+                # Descontar de la reserva global
+                st.session_state.reserva_daño -= puntos_a_usar
+                st.rerun()
+
+    with col_log:
+        st.subheader("📜 Log")
+        for e in reversed(st.session_state.log[-15:]):
+            st.write(f"- {e}")
+
+    # Forjado automático
     if st.session_state.recursos_jefe >= 6:
         st.session_state.recursos_jefe -= 6
         st.session_state.llaves_jefe += 1
-        st.warning("¡El Jefe ha forjado una llave!")
+        st.session_state.log.append(f"T{st.session_state.turno}: JEFE FORJÓ LLAVE")
         st.rerun()
 
+    if st.session_state.vida_actual <= 0:
+        st.success("¡VICTORIA!")
+        st.balloons()
