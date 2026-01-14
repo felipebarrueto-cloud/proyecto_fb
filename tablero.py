@@ -33,22 +33,33 @@ def mostrar_tablero():
             st.rerun()
 
     # --- 2. CÁLCULO DE PODER UNIFICADO (KRAKEN + EQUIPO) ---
+    # El daño base siempre es 3
     daño_base_jefe = 3
+    
+    # Daño de las criaturas que ya están en la mesa
     daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+    
+    # Daño de la carta que se acaba de revelar (CARTA ACTIVA)
     daño_activa = 0
     if st.session_state.carta_activa and st.session_state.carta_activa['tipo'] == "CRIATURA":
         daño_activa = st.session_state.carta_activa.get('defensa', 0)
     
+    # PODER TOTAL (Base + Mesa + Activa)
     poder_total_enemigo = daño_base_jefe + daño_mesa + daño_activa
 
-    with st.container(border=True):
-        col_t, col_d = st.columns([1, 2])
-        with col_t:
-            st.metric("⚔️ PODER ENEMIGO TOTAL", f"{poder_total_enemigo}")
-        with col_d:
-            st.caption(f"Desglose: Base(3) + Mesa({daño_mesa}) + Activa({daño_activa})")
-            progreso = min(poder_total_enemigo / 25, 1.0)
-            st.progress(progreso)
+    # PANEL DE AMENAZA (Solo se muestra si ya se reveló al menos una carta)
+    if st.session_state.carta_activa:
+        with st.container(border=True):
+            col_t, col_d = st.columns([1, 2])
+            with col_t:
+                st.metric("⚔️ PODER ENEMIGO TOTAL", f"{poder_total_enemigo}")
+            with col_d:
+                st.write("**Desglose de Amenaza:**")
+                st.caption(f"Base Jefe: 3 | Mesa: {daño_mesa} | Carta Revelada: {daño_activa}")
+                progreso = min(poder_total_enemigo / 25, 1.0)
+                st.progress(progreso)
+    else:
+        st.info("🐙 El Kraken está sumergido. Pulsa el botón para revelar la primera amenaza.")
 
     st.divider()
 
@@ -59,19 +70,15 @@ def mostrar_tablero():
         with col_img:
             ruta_p = RUTA_BASE + c['img']
             if os.path.exists(ruta_p):
-                st.image(ruta_p, caption="CARTA ACTIVA (RECIÉN REVELADA)", use_container_width=True)
+                st.image(ruta_p, caption=f"AMENAZA ACTUAL: {c['nombre']}", use_container_width=True)
             else:
                 st.error(f"Falta imagen: {c['img']}")
     
-    st.divider()
-
     # --- 4. CARRIL DE CARTAS (EL TABLERO) ---
-    st.subheader("Amenazas en la Mesa")
+    st.subheader("Mesa (Amenazas Permanentes)")
     
     if st.session_state.mesa:
-        # Mostramos las cartas en una cuadrícula de 6 columnas
         filas_mesa = st.columns(6)
-        
         for i, carta in enumerate(st.session_state.mesa):
             with filas_mesa[i % 6]:
                 with st.container(border=True):
@@ -79,19 +86,16 @@ def mostrar_tablero():
                     if os.path.exists(p_mesa):
                         st.image(p_mesa, use_container_width=True)
                     
-                    # Interacción según el tipo
                     if carta['tipo'] == "CRIATURA":
                         st.write(f"❤️ HP: **{carta['def_actual']}**")
-                        # Botón para daño manual
                         if st.button("💥 -1", key=f"dmg_{i}"):
                             carta['def_actual'] -= 1
                             if carta['def_actual'] <= 0:
-                                # Regla: Al morir criatura, -3 HP al Jefe
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                                 st.toast(f"¡{carta['nombre']} destruida! -3 HP al Jefe")
                             st.rerun()
                     else:
                         st.caption("💠 ARTEFACTO")
-    else:
-        st.info("La mesa está despejada. Revela una carta para empezar.")
+    elif st.session_state.carta_activa:
+        st.caption("La mesa está limpia, pero la carta activa está atacando.")
