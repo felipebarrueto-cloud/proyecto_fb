@@ -52,7 +52,7 @@ def mostrar_tablero():
     
     # --- MESA DE JUEGO ---
     st.divider()
-    st.subheader("🏟️ Mesa (Criaturas y Artefactos)")
+    st.subheader("Mesa (Criaturas y Artefactos)")
     if st.session_state.mesa:
         cols = st.columns(6)
         for i, carta in enumerate(st.session_state.mesa):
