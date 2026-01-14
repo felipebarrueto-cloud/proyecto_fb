@@ -1,154 +1,92 @@
 import streamlit as st
-import random
 import os
+from cartas import obtener_mazo_oficial
 
-st.set_page_config(page_title="Keyraken Adventure - Deck Balanced", layout="wide")
-
+st.set_page_config(page_title="Keyraken Adventure - Pre-view Mode", layout="wide")
 RUTA_BASE = "proyecto_keyforge/"
 
-# --- CONFIGURACIÓN DEL MAZO OFICIAL (43 CARTAS) ---
-def inicializar_mazo_oficial():
-    # Definimos las cartas con sus cantidades exactas según el set de aventura
-    cartas_definidas = [
-        # CRIATURAS (Brazos y Tentáculos)
-        {"nombre": "Crushing Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 9, "img": "1.png", "efecto": "Destroyed: -3 HP al Jefe"},
-        {"nombre": "Grappling Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "3.png", "efecto": "Play: Captura recursos"},
-        {"nombre": "Lashing Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
-        {"nombre": "Shield Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "8.png", "efecto": "Taunt"},
-        {"nombre": "Slippery Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "10.png", "efecto": "Taunt"},
-        {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png", "efecto": "Reap: Roba recursos"},
-        
-        # ARTEFACTOS
-        {"nombre": "Ascending Jet", "cant": 4, "tipo": "ARTEFACTO", "defensa": 0, "img": "38.png", "efecto": "Soporte"},
-        {"nombre": "Submerged Cave", "cant": 4, "tipo": "ARTEFACTO", "defensa": 0, "img": "40.png", "efecto": "Efecto de entorno"},
-        
-        # ACCIONES (Se van directo al descarte tras activar su efecto)
-        {"nombre": "Beast of Dark Legend", "cant": 3, "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana recursos"},
-        {"nombre": "The Keyraken Emerges", "cant": 3, "tipo": "ACCION", "img": "16.png", "efecto": "Añade amenazas"},
-        {"nombre": "Whirlpool", "cant": 4, "tipo": "ACCION", "img": "20.png", "efecto": "Efecto de control"},
-    ]
+# --- ESTADOS DEL JUEGO ---
+if 'mazo' not in st.session_state:
+    st.session_state.mazo = obtener_mazo_oficial()
+    st.session_state.mesa = []
+    st.session_state.descarte = []
+    st.session_state.carta_previa = None # Carta que se está previsualizando
+    st.session_state.log = []
 
-    mazo_final = []
-    for c in cartas_definidas:
-        for _ in range(c["cant"]):
-            # Creamos una copia de la carta para el mazo
-            nueva_carta = c.copy()
-            del nueva_carta["cant"] # No necesitamos el contador en la carta individual
-            mazo_final.append(nueva_carta)
-    
-    # Rellenamos hasta 43 con cartas genéricas de "Amenaza Menor" si faltan
-    while len(mazo_final) < 43:
-        mazo_final.append({"nombre": "Minor Threat", "tipo": "ACCION", "img": "generic.png", "efecto": "Jefe gana 1 recurso"})
+# --- INTERFAZ ---
+st.title("🏟️ Campo de Batalla Keyraken")
 
-    random.shuffle(mazo_final)
-    return mazo_final
+col_control, col_tablero = st.columns([1, 2.5])
 
-# --- ESTADOS DE SESIÓN ---
-if 'log' not in st.session_state: st.session_state.log = []
-if 'mesa' not in st.session_state: st.session_state.mesa = []
-if 'descarte' not in st.session_state: st.session_state.descarte = []
-if 'reserva_daño' not in st.session_state: st.session_state.reserva_daño = 0
-
-if 'juego_iniciado' not in st.session_state:
-    st.session_state.juego_iniciado = False
-
-# --- LÓGICA DE INICIO ---
-if not st.session_state.juego_iniciado:
-    st.title("🐙 Keyraken Adventure - Deck Setup")
-    n_jug = st.number_input("Número de Jugadores", min_value=1, value=1)
-    if st.button("Generar Mazo de 43 Cartas e Iniciar"):
-        st.session_state.vida_max = 30 * n_jug
-        st.session_state.vida_actual = st.session_state.vida_max
-        st.session_state.llaves_unforged = 3
-        st.session_state.armadura_actual = 6
-        st.session_state.recursos_jefe = 0
-        st.session_state.llaves_jefe = 0
-        st.session_state.mazo = inicializar_mazo_oficial()
-        st.session_state.juego_iniciado = True
-        st.rerun()
-
-# --- INTERFAZ DE BATALLA ---
-else:
-    col_izq, col_der = st.columns([1, 2.5])
-
-    with col_izq:
-        # Visualización del Jefe
-        img_jefe = RUTA_BASE + "kf_adv_keyraken_keyraken.pdf.png"
-        if os.path.exists(img_jefe): st.image(img_jefe)
-        
-        st.metric("HP Jefe", f"{st.session_state.vida_actual}")
-        st.metric("Armadura", f"{st.session_state.armadura_actual}")
-        st.write(f"Mazo: {len(st.session_state.mazo)} cartas restantes")
-        
-        st.divider()
-        # Gestión de Daño
-        val = st.number_input("Cargar Daño:", min_value=0, step=1)
-        if st.button("Añadir Daño"):
-            st.session_state.reserva_daño += val
-            st.rerun()
-        st.info(f"Reserva: {st.session_state.reserva_daño}")
-
-    with col_der:
-        # ACCIÓN: REVELAR CARTA
-        if st.button("🎴 Revelar Carta del Mazo"):
+with col_control:
+    st.subheader("Turno del Jefe")
+    # BOTÓN PARA REVELAR (Solo si no hay una carta pendiente de previsualizar)
+    if st.session_state.carta_previa is None:
+        if st.button("🎴 REVELAR NUEVA CARTA"):
             if st.session_state.mazo:
-                # Reset Armadura
-                st.session_state.armadura_actual = 2 * st.session_state.llaves_unforged
-                
-                carta = st.session_state.mazo.pop(0)
-                if carta['tipo'] in ["CRIATURA", "ARTEFACTO"]:
-                    carta['def_actual'] = carta.get('defensa', 0)
-                    st.session_state.mesa.append(carta)
-                    st.session_state.log.append(f"REVELADO: {carta['nombre']} (Quedan {len(st.session_state.mazo)})")
-                else:
-                    st.session_state.recursos_jefe += 2
-                    st.session_state.descarte.append(carta)
-                    st.session_state.log.append(f"ACCION: {carta['nombre']} - Ejecutada y Descartada")
+                st.session_state.carta_previa = st.session_state.mazo.pop(0)
                 st.rerun()
+    else:
+        st.warning("Resuelve la carta actual antes de revelar otra.")
 
-        # ATAQUE SIMPLIFICADO
-        if st.session_state.reserva_daño > 0:
-            objs = ["Keyraken"] + [f"{c['nombre']} (ID:{i})" for i, c in enumerate(st.session_state.mesa)]
-            target = st.selectbox("Objetivo:", objs)
-            if st.button("EJECUTAR ATAQUE"):
-                if target == "Keyraken":
-                    d = st.session_state.reserva_daño
-                    if st.session_state.armadura_actual > 0:
-                        a = min(d, st.session_state.armadura_actual)
-                        st.session_state.armadura_actual -= a
-                        d -= a
-                    st.session_state.vida_actual -= d
-                    st.session_state.reserva_daño = 0
-                else:
-                    idx = int(target.split("ID:")[1].replace(")", ""))
-                    c = st.session_state.mesa[idx]
-                    coste = min(st.session_state.reserva_daño, c['def_actual'])
-                    c['def_actual'] -= coste
-                    st.session_state.reserva_daño -= coste
-                    if c['def_actual'] <= 0:
-                        st.session_state.vida_actual -= 3
-                        st.session_state.descarte.append(st.session_state.mesa.pop(idx))
-                st.rerun()
+    st.divider()
+    st.write(f"Mazo: {len(st.session_state.mazo)} | Descarte: {len(st.session_state.descarte)}")
 
-        # CARRIL DE CARTAS
-        st.subheader("Tablero")
-        if st.session_state.mesa:
-            cols = st.columns(min(len(st.session_state.mesa), 5))
-            for i, carta in enumerate(st.session_state.mesa):
-                with cols[i % 5]:
-                    with st.container(border=True):
-                        p = RUTA_BASE + carta['img']
-                        if os.path.exists(p): st.image(p)
-                        st.write(f"**{carta['nombre']}**")
-                        if carta['tipo'] == "CRIATURA":
-                            st.caption(f"HP: {carta['def_actual']}/{carta['defensa']}")
+# --- ZONA DE PREVISUALIZACIÓN (CARTA REVELADA) ---
+if st.session_state.carta_previa:
+    cp = st.session_state.carta_previa
+    st.divider()
+    st.subheader("👁️ Previsualización de Amenaza")
+    
+    with st.container(border=True):
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            img_p = RUTA_BASE + cp['img']
+            if os.path.exists(img_p):
+                st.image(img_p, width=300)
+            else:
+                st.error(f"Imagen no encontrada: {cp['img']}")
         
-        with st.expander("Ver Historial (Log)"):
-            for l in reversed(st.session_state.log): st.write(l)
+        with c2:
+            st.title(cp['nombre'])
+            st.write(f"**TIPO:** {cp['tipo']}")
+            st.info(f"**EFECTO:** {cp['efecto']}")
+            
+            # BOTÓN SEGÚN EL TIPO DE CARTA
+            if cp['tipo'] in ["CRIATURA", "ARTEFACTO"]:
+                if st.button(f"📥 Enviar {cp['nombre']} al TABLERO"):
+                    cp['def_actual'] = cp.get('defensa', 0)
+                    st.session_state.mesa.append(cp)
+                    st.session_state.log.append(f"Nueva criatura en mesa: {cp['nombre']}")
+                    st.session_state.carta_previa = None # Limpia la previsualización
+                    st.rerun()
+            else:
+                # Es una ACCION
+                if st.button(f"⚡ Ejecutar y enviar al DESCARTE"):
+                    st.session_state.descarte.append(cp)
+                    st.session_state.log.append(f"Acción ejecutada: {cp['nombre']}")
+                    st.session_state.carta_previa = None # Limpia la previsualización
+                    st.rerun()
 
-    # Forjado automático
-    if st.session_state.recursos_jefe >= 6:
-        st.session_state.recursos_jefe -= 6
-        st.session_state.llaves_jefe += 1
-        st.rerun()
+# --- TABLERO (CARRIL DE CARTAS) ---
+st.divider()
+st.subheader("🏟️ Mesa Actual")
+if st.session_state.mesa:
+    cols = st.columns(6)
+    for i, carta in enumerate(st.session_state.mesa):
+        with cols[i % 6]:
+            with st.container(border=True):
+                p_m = RUTA_BASE + carta['img']
+                if os.path.exists(p_m):
+                    st.image(p_m, use_container_width=True)
+                st.caption(f"**{carta['nombre']}**")
+                if carta['tipo'] == "CRIATURA":
+                    st.write(f"❤️ {carta['def_actual']}")
+                
+                # Botón para destruir manualmente si es necesario
+                if st.button("🗑️", key=f"del_{i}"):
+                    st.session_state.descarte.append(st.session_state.mesa.pop(i))
+                    st.rerun()
+else:
+    st.info("No hay cartas en la mesa.")
 
