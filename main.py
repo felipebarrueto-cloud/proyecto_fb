@@ -43,7 +43,7 @@ else:
         
         # Usamos un contenedor con borde para que destaque
         with st.container(border=True):
-            st.subheader("👁️ CARTA REVELADA")
+            st.subheader("CARTA REVELADA")
             col_img, col_info = st.columns([1, 2])
             
             with col_img:
@@ -61,7 +61,7 @@ else:
                 
                 # Botones de decisión
                 if carta['tipo'] in ["CRIATURA", "ARTEFACTO"]:
-                    if st.button(f"📥 Enviar a la Mesa"):
+                    if st.button(f"Enviar a la Mesa"):
                         carta['def_actual'] = carta.get('defensa', 0)
                         st.session_state.mesa.append(carta)
                         st.session_state.carta_previa = None # Limpiamos para poder revelar otra
@@ -74,7 +74,7 @@ else:
 
     # --- 4. EL TABLERO (MESA) ---
     st.divider()
-    st.subheader("🏟️ Mesa de Combate")
+    st.subheader("Mesa de Combate")
     if st.session_state.mesa:
         cols = st.columns(6)
         for i, c in enumerate(st.session_state.mesa):
@@ -86,5 +86,6 @@ else:
                     st.caption(f"**{c['nombre']}**")
                     if c['tipo'] == "CRIATURA":
                         st.write(f"❤️ {c['def_actual']}")
+
 
 
