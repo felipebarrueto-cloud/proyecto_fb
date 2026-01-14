@@ -1,26 +1,9 @@
-# estado.py
 import streamlit as st
 
-def mostrar_tablero_jefe():
-    st.subheader("🐙 Estatus del Keyraken")
-    
-    # Diseño en 4 métricas clave
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Vida Total", f"{st.session_state.vida_jefe} HP")
-    
-    with col2:
-        # La armadura base es 2 por cada llave no forjada del jugador
-        armadura_base = 2 * st.session_state.llaves_unforged_jugador
-        st.metric("Armadura", f"{st.session_state.armadura_actual} / {armadura_base}")
-    
-    with col3:
-        st.metric("Recursos (Ámbar)", f"{st.session_state.recursos_jefe} / 6")
-        
-    with col4:
-        st.metric("Llaves Forjadas", f"{st.session_state.llaves_jefe} / 3")
-
-    # Alerta visual si el jefe está a punto de ganar
-    if st.session_state.llaves_jefe >= 2:
+def mostrar_estado():
+    st.header("🐙 Estado Actual del Keyraken")
+    col1, col2 = st.columns(2)
+    col1.metric("Vida", f"{st.session_state.vida_jefe} HP")
+    col2.metric("Llaves del Jefe", f"{st.session_state.llaves_jefe}/3")
+    st.progress(st.session_state.recursos_jefe / 6, text=f"Ámbar: {st.session_state.recursos_jefe}/6")
         st.error("⚠️ ¡El Keyraken está a punto de forjar su tercera llave!")
