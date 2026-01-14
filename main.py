@@ -2,133 +2,122 @@ import streamlit as st
 import random
 import os
 
-# Configuración de la página
-st.set_page_config(page_title="Keyraken Adventure", layout="centered")
+# Configuración de la página para que se vea bien en web y móvil
+st.set_page_config(page_title="Keyraken Adventure", layout="wide")
 
-# --- LÓGICA DE DATOS (Basado en tus documentos) ---
+# --- RUTA DE LA IMAGEN (Corregida según tu repo) ---
+# Como tu imagen está dentro de una carpeta, debemos incluirla en la ruta
+RUTA_IMAGEN = "proyecto_keyforge/kf_adv_keyraken_keyraken.pdf.png"
+
+# --- LÓGICA DE CARTAS (Mapeo de tus PDF) ---
 def inicializar_mazo():
-    # Mapeo de cartas del pool [cite: 2, 20, 42, 63, 131, 339]
     pool = [
-        {"nombre": "Crushing Arm", "tipo": "criatura", "defensa": 9, "efecto": "Destrucción: -3 HP al Jefe [cite: 5]"},
-        {"nombre": "Grappling Tentacle", "tipo": "criatura", "defensa": 6, "efecto": "Play: Captura recursos [cite: 23]"},
-        {"nombre": "Shield Arm", "tipo": "criatura", "defensa": 6, "efecto": "Taunt: Debes destruirla primero [cite: 68]"},
-        {"nombre": "Beast of Dark Legend", "tipo": "accion", "efecto": "Jefe gana recursos por llaves [cite: 133]"},
-        {"nombre": "Ascending Jet", "tipo": "artefacto", "efecto": "Soporte: Potencia criaturas [cite: 342]"},
+        {"nombre": "Crushing Arm", "tipo": "CRIATURA", "defensa": 9, "efecto": "Destroyed: -3 HP al Jefe (ignora armadura)"},
+        {"nombre": "Shield Arm", "tipo": "CRIATURA", "defensa": 6, "efecto": "Taunt: Debes atacarlo antes que al Jefe"},
+        {"nombre": "Grappling Tentacle", "tipo": "CRIATURA", "defensa": 6, "efecto": "Play: Captura recursos del jugador"},
+        {"nombre": "Beast of Dark Legend", "tipo": "ACCION", "efecto": "Jefe gana recursos por cada llave no forjada"},
+        {"nombre": "Ascending Jet", "tipo": "ARTEFACTO", "efecto": "Soporte: +3 poder a la criatura más débil"}
     ]
+    # Creamos el mazo de 43 cartas
     mazo = random.choices(pool, k=43)
     random.shuffle(mazo)
     return mazo
 
-# --- ESTADO DEL JUEGO (Session State) ---
+# --- INICIALIZACIÓN DE ESTADO ---
 if 'juego_iniciado' not in st.session_state:
     st.session_state.juego_iniciado = False
 
-# --- PANTALLA DE INICIO ---
 if not st.session_state.juego_iniciado:
     st.title("🐙 Keyraken Adventure")
-    st.write("Configura la partida para comenzar")
-    num_jugadores = st.number_input("Cantidad de jugadores", min_value=1, value=1)
-    
-    if st.button("Iniciar Juego"):
+    num_jugadores = st.number_input("¿Cuántos jugadores?", min_value=1, value=1)
+    if st.button("Empezar Batalla"):
         st.session_state.num_jugadores = num_jugadores
-        st.session_state.vida_max = 30 * num_jugadores  # 
-        st.session_state.vida_jefe = st.session_state.vida_max
+        st.session_state.vida_max = 30 * num_jugadores
+        st.session_state.vida_actual = st.session_state.vida_max
         st.session_state.llaves_unforged = 3
         st.session_state.recursos_jefe = 0
         st.session_state.llaves_jefe = 0
-        st.session_state.criaturas_mesa = []
+        st.session_state.mesa = []
         st.session_state.mazo = inicializar_mazo()
-        st.session_state.log = ["¡El Keyraken ha emergido!"]
         st.session_state.juego_iniciado = True
         st.rerun()
 
-# --- PANTALLA DE JUEGO ---
 else:
-    # Calcular Armadura: +2 por cada llave no forjada del jugador 
-    armadura = 2 * st.session_state.llaves_unforged
+    # --- CÁLCULO DE ARMADURA DINÁMICA ---
+    # +2 por cada llave que el jugador no ha forjado aún
+    armadura_jefe = 2 * st.session_state.llaves_unforged
 
     st.title("Batalla contra el Keyraken")
-    
-    col1, col2 = st.columns([1, 1])
 
-    with col1:
-        # Mostrar imagen del jefe
-        if os.path.exists("kf_adv_keyraken_keyraken.pdf.png"):
-            st.image("kf_adv_keyraken_keyraken.pdf.png", caption="The Keyraken [cite: 432]")
+    col_izq, col_der = st.columns([1, 2])
+
+    with col_izq:
+        st.subheader("El Jefe")
+        # Mostrar imagen desde la subcarpeta
+        if os.path.exists(RUTA_IMAGEN):
+            st.image(RUTA_IMAGEN, use_container_width=True)
         else:
-            st.warning("Imagen 'kf_adv_keyraken_keyraken.pdf.png' no encontrada en el repositorio.")
-        
-        # Barra de vida
-        progreso_vida = max(0, st.session_state.vida_jefe / st.session_state.vida_max)
-        st.progress(progreso_vida)
-        st.metric("Vida del Jefe", f"{st.session_state.vida_jefe} HP")
-        st.metric("Armadura Activa", f"{armadura}")
+            st.error(f"No se encuentra: {RUTA_IMAGEN}")
+            st.info("Asegúrate de que la carpeta se llame 'proyecto_keyforge' en GitHub.")
 
-    with col2:
-        st.subheader("Estado del Jefe")
-        st.write(f"🔑 Llaves del Jefe: {st.session_state.llaves_jefe} / 3")
+        st.metric("Vida", f"{st.session_state.vida_actual} HP")
+        st.metric("Armadura Activa", f"{armadura_jefe}")
         st.write(f"💎 Recursos: {st.session_state.recursos_jefe} / 6")
-        
-        st.divider()
-        
-        # Acciones del Jugador
-        st.subheader("Tu Turno")
-        daño_jugador = st.number_input("Daño total de tu ataque", min_value=0, value=0)
-        
-        # Selección de objetivo
-        objetivo = st.selectbox("Objetivo del ataque", ["Keyraken"] + [c['nombre'] for c in st.session_state.criaturas_mesa])
+        st.write(f"🔑 Llaves Jefe: {st.session_state.llaves_jefe} / 3")
 
-        if st.button("Ejecutar Ataque"):
-            if objetivo == "Keyraken":
-                # Verificar Taunt
-                if any(c['nombre'] == "Shield Arm" for c in st.session_state.criaturas_mesa):
-                    st.error("¡Bloqueado! Debes destruir el Shield Arm primero[cite: 68].")
+    with col_der:
+        st.subheader("Mesa y Acciones")
+        
+        # Botón para robar carta del mazo de 43
+        if st.button("Revelar Carta (Turno del Jefe)"):
+            if st.session_state.mazo:
+                carta = st.session_state.mazo.pop(0)
+                if carta['tipo'] == "ACCION":
+                    st.warning(f"ACCIÓN: {carta['nombre']} - {carta['efecto']}")
+                    st.session_state.recursos_jefe += 2
                 else:
-                    if daño_jugador > armadura:
-                        daño_real = daño_jugador - armadura
-                        st.session_state.vida_jefe -= daño_real
-                        st.session_state.log.append(f"Atacaste al Jefe por {daño_real} de daño.")
-                    else:
-                        st.session_state.log.append("El ataque rebotó en la armadura.")
-            else:
-                # Atacar criatura
-                idx = [i for i, c in enumerate(st.session_state.criaturas_mesa) if c['nombre'] == objetivo][0]
-                st.session_state.criaturas_mesa[idx]['defensa'] -= daño_jugador
-                if st.session_state.criaturas_mesa[idx]['defensa'] <= 0:
-                    st.session_state.log.append(f"¡Destruiste {objetivo}! El jefe recibe 3 de daño extra[cite: 5].")
-                    st.session_state.vida_jefe -= 3
-                    st.session_state.criaturas_mesa.pop(idx)
+                    st.session_state.mesa.append(carta)
+                
+                # Regla de forjado de llaves
+                if st.session_state.recursos_jefe >= 6:
+                    st.session_state.recursos_jefe -= 6
+                    st.session_state.llaves_jefe += 1
             st.rerun()
 
-    # Turno del Jefe
-    if st.button("Pasar Turno (Turno del Jefe)"):
-        if st.session_state.mazo:
-            carta = st.session_state.mazo.pop(0)
-            st.session_state.log.append(f"Jefe revela: {carta['nombre']}")
-            if carta['tipo'] == "criatura":
-                st.session_state.criaturas_mesa.append(carta)
+        # Visualización de criaturas en mesa
+        if st.session_state.mesa:
+            st.write("--- Criaturas/Artefactos en juego ---")
+            cols_mesa = st.columns(2)
+            for idx, c in enumerate(st.session_state.mesa):
+                with cols_mesa[idx % 2]:
+                    with st.container(border=True):
+                        st.write(f"**{c['nombre']}** ({c['tipo']})")
+                        st.write(f"DEF: {c['defensa']}" if 'defensa' in c else "")
+                        st.caption(c['efecto'])
+                        if st.button(f"Destruir {idx}", key=f"del_{idx}"):
+                            # Al destruir partes, el jefe recibe 3 de daño directo
+                            st.session_state.vida_actual -= 3
+                            st.session_state.mesa.pop(idx)
+                            st.rerun()
+
+        st.divider()
+        # Ataque directo al Jefe
+        daño_atq = st.number_input("Tu daño de ataque:", min_value=0)
+        if st.button("Atacar al Keyraken"):
+            if daño_atq > armadura_jefe:
+                daño_real = daño_atq - armadura_jefe
+                st.session_state.vida_actual -= daño_real
+                st.success(f"¡Golpeaste al jefe por {daño_real}!")
             else:
-                st.session_state.recursos_jefe += 2
-            
-            # Forjar llaves del jefe
-            if st.session_state.recursos_jefe >= 6:
-                st.session_state.recursos_jefe -= 6
-                st.session_state.llaves_jefe += 1
-                st.session_state.log.append("¡El Jefe forjó una llave!")
-        st.rerun()
+                st.error("Daño insuficiente para atravesar la armadura.")
+            st.rerun()
 
-    # Historial
-    st.divider()
-    with st.expander("Ver Historial de Batalla"):
-        for l in reversed(st.session_state.log):
-            st.write(l)
-
-    # Condiciones de fin
-    if st.session_state.vida_jefe <= 0:
+    # Condiciones de victoria / derrota
+    if st.session_state.vida_actual <= 0:
         st.balloons()
-        st.success("¡VICTORIA! Han destruido al Keyraken[cite: 437].")
+        st.success("¡VICTORIA! El Keyraken ha sido derrotado.")
         if st.button("Reiniciar"): st.session_state.clear()
-        
+    
     if st.session_state.llaves_jefe >= 3:
-        st.error("DERROTA: El Keyraken ha forjado las 3 llaves.")
+        st.error("DERROTA: El Jefe ha forjado 3 llaves.")
         if st.button("Reiniciar"): st.session_state.clear()
