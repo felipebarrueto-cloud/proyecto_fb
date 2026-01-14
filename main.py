@@ -1,6 +1,6 @@
 import streamlit as st
 from cartas import obtener_mazo_oficial
-import estado, tablero, descarte # Importamos tus scripts secundarios
+import estado, tablero, descarte
 
 st.set_page_config(page_title="Keyraken Adventure", layout="wide")
 
@@ -36,3 +36,4 @@ else:
         
     elif pagina == "Zona de Descarte":
         descarte.mostrar_descarte()
+
