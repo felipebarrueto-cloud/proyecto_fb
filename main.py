@@ -12,8 +12,8 @@ def inicializar_mazo():
         {"nombre": "Crushing Arm", "tipo": "CRIATURA", "defensa": 9, "img": "1.png", "efecto": "Destroyed: -3 HP al Jefe"},
         {"nombre": "Grappling Tentacle", "tipo": "CRIATURA", "defensa": 6, "img": "3.png", "efecto": "Play: Captura recursos"},
         {"nombre": "Lashing Tentacle", "tipo": "CRIATURA", "defensa": 3, "img": "5.png", "efecto": "Skirmish"},
-        {"nombre": "Shield Arm", "tipo": "CRIATURA", "defensa": 6, "img": "kf_adv_keyraken_008.png", "efecto": "Taunt"},
-        {"nombre": "Beast of Dark Legend", "tipo": "ACCION", "img": "kf_adv_keyraken_014.png", "efecto": "Jefe gana recursos"}
+        {"nombre": "Shield Arm", "tipo": "CRIATURA", "defensa": 6, "img": "8.png", "efecto": "Taunt"},
+        {"nombre": "Beast of Dark Legend", "tipo": "ACCION", "img": "14.png", "efecto": "Jefe gana recursos"}
     ]
     # Generamos el mazo de 43 cartas
     return random.choices(pool, k=43)
@@ -158,3 +158,4 @@ else:
         st.session_state.recursos_jefe -= 6
         st.session_state.llaves_jefe += 1
         st.rerun()
+
