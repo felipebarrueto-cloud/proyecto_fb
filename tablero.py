@@ -4,8 +4,29 @@ import marea
 
 RUTA_BASE = "proyecto_keyforge/"
 
+def procesar_habilidades_carta(carta, marea_ya_cambio):
+    """Procesa ámbar, marea y habilidades especiales de cualquier carta"""
+    # 1. Ámbar de regalo
+    st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
+    
+    # 2. Marea
+    if carta.get('sube_marea') == True and not marea_ya_cambio:
+        st.session_state.marea = "Alta"
+        st.toast(f"🌊 Marea Alta: {carta['nombre']}")
+        marea_ya_cambio = True
+        
+    # 3. Habilidad: Archivar
+    if carta.get("habilidad") == "archivar":
+        valor = carta.get("valor", 0)
+        for _ in range(valor):
+            if st.session_state.mazo:
+                st.session_state.archivo_jefe.append(st.session_state.mazo.pop(0))
+        st.toast(f"📦 {carta['nombre']} archivó {valor} cartas.")
+    
+    return marea_ya_cambio
+
 def mostrar_tablero():
-    # --- CSS MANTENIDO ---
+    # --- CSS ACTUALIZADO ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -14,122 +35,114 @@ def mostrar_tablero():
                 font-weight: bold !important;
                 border-radius: 10px !important;
                 height: 3em !important;
-                margin-top: 10px !important;
             }
-            .main .block-container { padding-top: 1rem !important; }
             .compact-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; background: #1a1c23; }
             .label { color: #888; font-size: 10px; display: block; }
-            .val-red { color: #ff4b4b; font-size: 18px; font-weight: bold; }
-            .texto-blanco { color: #ffffff; font-size: 18px; font-weight: bold; vertical-align: middle; }
-            .gema { font-size: 18px; vertical-align: middle; }
+            .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
+            .texto-blanco { color: #ffffff; font-size: 18px; font-weight: bold; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR ---
+    # --- 1. BOTÓN REVELAR (Lógica Completa) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
-        
-        if st.session_state.mazo:
-            if st.session_state.carta_activa:
-                c_v = st.session_state.carta_activa
-                if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
-                    c_v['def_actual'] = c_v.get('defensa', 0)
-                    st.session_state.mesa.append(c_v)
+
+        # A. Jugar cartas archivadas primero
+        if st.session_state.get('archivo_jefe'):
+            cartas_a_jugar = st.session_state.archivo_jefe.copy()
+            st.session_state.archivo_jefe = []
+            for c_arc in cartas_a_jugar:
+                marea_ya_cambio = procesar_habilidades_carta(c_arc, marea_ya_cambio)
+                if c_arc['tipo'] in ["CRIATURA", "ARTEFACTO"]:
+                    c_arc['def_actual'] = c_arc.get('defensa', 0)
+                    st.session_state.mesa.append(c_arc)
                 else:
-                    st.session_state.descarte.append(c_v)
-            
-            nueva_c = st.session_state.mazo.pop(0)
-            st.session_state.carta_activa = nueva_c
-            
-            # Lógica de Presa: Solo se evalúa al revelar
-            presa_en_mesa = any(carta.get('presa') == True for carta in st.session_state.mesa if carta['tipo'] == "CRIATURA")
-            presa_revelada = nueva_c.get('presa') == True
+                    st.session_state.descarte.append(c_arc)
+            st.warning(f"📦 Se jugaron {len(cartas_a_jugar)} cartas del archivo.")
 
-            if not (presa_revelada or presa_en_mesa):
+        # B. Mover carta activa anterior a la mesa
+        if st.session_state.carta_activa:
+            c_v = st.session_state.carta_activa
+            if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
+                c_v['def_actual'] = c_v.get('defensa', 0)
+                st.session_state.mesa.append(c_v)
+            else:
+                st.session_state.descarte.append(c_v)
+
+        # C. Revelar nueva carta
+        if st.session_state.mazo:
+            nueva = st.session_state.mazo.pop(0)
+            st.session_state.carta_activa = nueva
+            marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
+            
+            # Check de Presa para el +1 Æmbar
+            presa_en_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
+            if not (nueva.get('presa') or presa_en_mesa):
                 st.session_state.recursos_jefe += 1
-                st.toast("💎 Sin Presa: +1 Æmbar.")
-
-            if nueva_c.get('sube_marea') == True and not marea_ya_cambio:
-                st.session_state.marea = "Alta"
+                st.toast("💎 Sin Presa: +1 Æmbar")
             
-            st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             st.rerun()
 
-    # --- 2. CÁLCULO DE PODER (CORREGIDO) ---
+    # --- 2. CÁLCULO DE PODER ---
     poder_total = 0
-    detalle_base = ""
+    detalle = "Esperando..."
+    n_archivo = len(st.session_state.get('archivo_jefe', []))
 
     if st.session_state.carta_activa:
-        # A. Comprobar si hay PRESA (activa el daño base del jefe inmediatamente)
-        presa_en_mesa = any(c.get('presa') == True for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+        presa_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
         presa_activa = st.session_state.carta_activa.get('presa') == True
-    
-        # El daño base de 3 se aplica SIEMPRE que haya una presa (incluso si acaba de aparecer)
-        daño_base = 3 if (presa_en_mesa or presa_activa) else 0
-    
-        # B. Daño de criaturas en mesa (Criaturas de turnos anteriores)
-        daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
-    
-        # C. Daño de la criatura activa (REGLA: Es 0 porque acaba de ser revelada / Agotada)
-        daño_activa_inmediato = 0 
-    
-        poder_total = daño_base + daño_mesa + daño_activa_inmediato
-    
-        if daño_base > 0:
-            detalle_base = f"(Base 3 por Presa + {daño_mesa} Mesa)"
-        else:
-            detalle_base = f"(Solo Mesa: {daño_mesa} | Jefe: +1 Æ)"
-    else:
-        detalle_base = "Esperando primer turno..."
+        
+        daño_base = 3 if (presa_mesa or presa_activa) else 0
+        daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA")
+        
+        poder_total = daño_base + daño_mesa
+        detalle = f"(Base 3 + Mesa)" if daño_base > 0 else f"(Mesa: {daño_mesa})"
 
     # --- TABLA DE RESUMEN ---
     st.markdown(f"""
         <table class="compact-table">
             <tr>
-                <td style="width: 45%;">
-                    <span class="label">💥 PODER TOTAL</span>
+                <td style="width: 33%;">
+                    <span class="label">💥 PODER</span>
                     <span class="val-white">{poder_total}</span>
-                    <br><span style="font-size:9px; color:#888;">{detalle_base}</span>
+                    <br><span style="font-size:8px; color:#888;">{detalle}</span>
                 </td>
-                <td style="width: 55%;">
-                    <span class="label">RECURSOS Y MAREA</span>
-                    <span class="gema">💎</span> 
-                    <span class="texto-blanco">{st.session_state.recursos_jefe} Æ</span>
-                    <span style="color:white; font-weight:bold;"> | 🌊 {st.session_state.marea}</span>
-                    <br><span style="font-size:10px; color:#666;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
+                <td style="width: 33%;">
+                    <span class="label">📦 ARCHIVO</span>
+                    <span class="val-white">{n_archivo}</span>
+                </td>
+                <td style="width: 34%;">
+                    <span class="label">💎 {st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
+                    <span style="color:white; font-size:10px;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
                 </td>
             </tr>
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. RENDERIZADO DE CARTAS ---
+    # --- 3. RENDERIZADO ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
-        ruta = RUTA_BASE + c['img']
-        if os.path.exists(ruta):
-            st.image(ruta, caption="CARTA REVELADA (AGOTADA)", use_container_width=True)
+        if os.path.exists(RUTA_BASE + c['img']):
+            st.image(RUTA_BASE + c['img'], caption="REVELADA (AGOTADA)", use_container_width=True)
 
     st.divider()
-
     if st.session_state.mesa:
-        st.subheader("Mesa (Criaturas y Artefactos)")
+        st.subheader("Mesa de Batalla")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
-                    ruta_m = RUTA_BASE + carta['img']
-                    if os.path.exists(ruta_m):
-                        st.image(ruta_m, use_container_width=True)
+                    if os.path.exists(RUTA_BASE + carta['img']):
+                        st.image(RUTA_BASE + carta['img'], use_container_width=True)
                     if carta['tipo'] == "CRIATURA":
-                        st.write(f"❤️ **{carta['def_actual']}** {'(⛓️ Presa)' if carta.get('presa') else ''}")
+                        st.write(f"❤️ **{carta['def_actual']}** {'(Presa)' if carta.get('presa') else ''}")
                         if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
                             carta['def_actual'] -= 1
                             if carta['def_actual'] <= 0:
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
-                    else:
-                        st.caption("💠 ARTEFACTO")
+                    else: st.caption("💠 ARTEFACTO")
