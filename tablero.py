@@ -59,7 +59,7 @@ def mostrar_tablero():
 
             if presa_revelada or presa_en_mesa:
                 # El jefe final ataca y NO genera el ámbar base
-                st.error("🦈 ¡HABILIDAD PRESA ACTIVA! El Jefe ataca con 3 de daño base (No genera Æmbar).")
+                st.error("🐙 ¡HABILIDAD PRESA ACTIVA! El Jefe ataca con 3 de daño base (No genera Æmbar).")
                 if presa_en_mesa and not presa_revelada:
                     st.info("💡 El ataque fue activado por una criatura en la mesa.")
             else:
