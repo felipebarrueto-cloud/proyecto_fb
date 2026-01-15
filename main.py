@@ -36,4 +36,9 @@ else:
         estado.mostrar_estado()
     elif pagina == "Descarte":
         descarte.mostrar_descarte()
-        
+
+    if "archivo_jefe" not in st.session_state:
+        st.session_state.archivo_jefe = []
+    if "penalizacion_robo" not in st.session_state:
+        st.session_state.penalizacion_robo = 0  # Cantidad de turnos que roba menos
+
