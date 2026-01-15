@@ -35,6 +35,9 @@ def mostrar_tablero():
 
     # --- 1. BOTÓN REVELAR ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
+        # LIMPIEZA AUTOMÁTICA: Borramos el aviso de desarchivadas del turno anterior
+        st.session_state.ultimas_desarchivadas = []
+        
         marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
@@ -42,19 +45,18 @@ def mostrar_tablero():
         # A. PROCESAR ARCHIVO (Vaciado inmediato a Mesa o Descarte)
         if st.session_state.get('archivo_jefe'):
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
-            st.session_state.archivo_jefe = [] # Vaciar archivo
+            st.session_state.archivo_jefe = [] 
             
             for c_arc in cartas_a_desarchivar:
-                # 1. Activar sus efectos
                 marea_ya_cambio = procesar_habilidades_carta(c_arc, marea_ya_cambio)
                 
-                # 2. Mover según tipo
                 if c_arc['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                     c_arc['def_actual'] = c_arc.get('defensa', 0)
-                    st.session_state.mesa.append(c_arc) # A la mesa
+                    st.session_state.mesa.append(c_arc)
                 else:
-                    st.session_state.descarte.append(c_arc) # Al descarte
+                    st.session_state.descarte.append(c_arc)
             
+            # Guardamos para mostrar visualmente solo este turno
             st.session_state.ultimas_desarchivadas = cartas_a_desarchivar
 
         # B. Mover la carta activa anterior a la mesa
@@ -72,7 +74,6 @@ def mostrar_tablero():
             st.session_state.carta_activa = nueva
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
             
-            # Lógica de Presa para generar Æmbar si no hay amenazas
             hay_presa_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
             if not (nueva.get('presa') or hay_presa_mesa):
                 st.session_state.recursos_jefe += 1
@@ -82,48 +83,63 @@ def mostrar_tablero():
     # --- 2. CÁLCULO DE PODER Y TABLA ---
     n_archivo = len(st.session_state.get('archivo_jefe', []))
     poder_total = 0
+    detalle_poder = "Turno 0"
+
     if st.session_state.carta_activa:
         p_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
         p_act = st.session_state.carta_activa.get('presa') == True
         base = 3 if (p_mesa or p_act) else 0
         mesa_dmg = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA")
         poder_total = base + mesa_dmg
+        detalle_poder = f"Base 3 + Mesa" if base > 0 else f"Mesa: {mesa_dmg}"
 
-    # Render de la Tabla
+    # --- TABLA DE RESUMEN REORGANIZADA ---
     st.markdown(f"""
         <table class="compact-table">
             <tr>
-                <td style="width: 33%;"><span class="label">💥 PODER</span><span class="val-white">{poder_total}</span></td>
-                <td style="width: 33%;"><span class="label">📦 ARCHIVO</span><span class="val-white">{n_archivo}</span></td>
-                <td style="width: 34%;"><span class="label">💎 {st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
-                <span style="color:#888; font-size:10px;">Avances: {st.session_state.avances_jefe}/4</span></td>
+                <td style="width: 30%;">
+                    <span class="label">💥 PODER TOTAL</span>
+                    <span class="val-white">{poder_total}</span>
+                    <br><span style="font-size:8px; color:#888;">{detalle_poder}</span>
+                </td>
+                <td style="width: 40%;">
+                    <span class="label">💎 RECURSOS Y MAREA</span>
+                    <span class="val-white" style="font-size:16px;">{st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
+                    <br><span style="font-size:10px; color:#888;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
+                </td>
+                <td style="width: 30%;">
+                    <span class="label">📦 ARCHIVO</span>
+                    <span class="val-white">{n_archivo}</span>
+                    <br><span style="font-size:8px; color:#888;">En espera</span>
+                </td>
             </tr>
         </table>
     """, unsafe_allow_html=True)
 
     # --- 3. ÁREA DE REVELADO (Doble Columna) ---
-    col_revelada, col_archivo = st.columns(2)
+    ultimas = st.session_state.get('ultimas_desarchivadas', [])
     
-    with col_revelada:
+    if ultimas:
+        col_revelada, col_archivo = st.columns(2)
+        with col_revelada:
+            if st.session_state.carta_activa:
+                st.caption("🆕 REVELADA (Agotada)")
+                st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+        with col_archivo:
+            st.caption("📤 SALIENDO DEL ARCHIVO")
+            for c_arc in ultimas:
+                st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
+    else:
+        # Si no hay nada desarchivado, mostrar la carta revelada centrada o normal
         if st.session_state.carta_activa:
             st.caption("🆕 REVELADA (Agotada)")
             st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
 
-    with col_archivo:
-        ultimas = st.session_state.get('ultimas_desarchivadas', [])
-        if ultimas:
-            st.caption("📤 DESARCHIVADA/S")
-            for c_arc in ultimas:
-                st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
-            if st.button("OK, cerrar aviso"):
-                st.session_state.ultimas_desarchivadas = []
-                st.rerun()
-
     st.divider()
 
-    # --- 4. MESA DE JUEGO (CRIATURAS Y ARTEFACTOS) ---
+    # --- 4. MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.subheader("🏟️ Mesa de Batalla")
+        st.subheader("Mesa de Batalla")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
