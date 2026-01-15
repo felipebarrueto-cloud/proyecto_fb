@@ -22,7 +22,7 @@ def mostrar_tablero():
     # --- CSS DE ALTA PRIORIDAD ---
     st.markdown("""
         <style>
-            /* 1. Botón REVELAR (Rojo) */
+            /* 1. Botón REVELAR (Rojo y Grande) */
             div.stButton > button:first-child { 
                 background-color: #ff4b4b !important; 
                 color: white !important; 
@@ -31,38 +31,25 @@ def mostrar_tablero():
             }
             
             /* 2. TABLA RESUMEN */
-            .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; }
-            .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
+            .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; overflow: hidden; }
+            .compact-table td { border: 1px solid #333; padding: 4px; text-align: center; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
 
-            /* 3. BOTONES DE GESTIÓN (Forzar color oscuro y eliminar rojo) */
-            /* Buscamos los botones que están dentro de las columnas después de la tabla */
-            div[data-testid="stHorizontalBlock"] div[data-testid="column"] button {
-                background-color: #1a1c23 !important;
-                color: #ffffff !important;
+            /* 3. BOTONES MINI DENTRO DE TABLA (Eliminar estilo por defecto de Streamlit) */
+            .gestion-btn {
+                background: none !important;
                 border: 1px solid #444 !important;
-                font-weight: normal !important;
-                height: 2.5em !important;
-            }
-
-            /* 4. FORZAR COLUMNAS LADO A LADO EN MÓVIL */
-            [data-testid="column"] {
-                width: 48% !important;
-                flex: 0 0 48% !important;
-                min-width: 48% !important;
-                display: inline-block !important;
-            }
-            div[data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                justify-content: space-between !important;
+                color: #ffffff !important;
+                padding: 2px 10px !important;
+                font-size: 12px !important;
+                border-radius: 4px !important;
+                cursor: pointer;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR ---
+    # --- 1. LÓGICA DE REVELADO ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
         marea_inicial = st.session_state.marea
@@ -72,8 +59,7 @@ def mostrar_tablero():
         for carta_mesa in st.session_state.mesa:
             if carta_mesa.get('no_hace_danio') and carta_mesa.get('ambar_generado'):
                 st.session_state.recursos_jefe += carta_mesa['ambar_generado']
-                st.toast(f"✨ {carta_mesa['nombre']} generó {carta_mesa['ambar_generado']} Æ.")
-
+        
         if st.session_state.get('archivo_jefe'):
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
@@ -98,12 +84,9 @@ def mostrar_tablero():
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
-            hay_presa_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
-            if not (nueva.get('presa') or hay_presa_mesa):
-                st.session_state.recursos_jefe += 1
             st.rerun()
 
-    # --- 2. TABLA DE RESUMEN ---
+    # --- 2. CÁLCULO Y TABLA CON BOTONES INTEGRADOS ---
     n_archivo = len(st.session_state.get('archivo_jefe', []))
     poder_total = 0
     if st.session_state.carta_activa:
@@ -113,6 +96,7 @@ def mostrar_tablero():
         dmg_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
         poder_total = base + dmg_mesa
 
+    # Render de Tabla Unificada
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -125,14 +109,14 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- GESTIÓN MANUAL ÆMBAR (FORZADO LADO A LADO) ---
-    col_izq, col_der = st.columns(2)
-    with col_izq:
-        if st.button("➖ Æ", use_container_width=True):
+    # Botones de gestión minimalistas debajo de la tabla (pero sin ser rojos)
+    c_m1, c_m2 = st.columns(2)
+    with c_m1:
+        if st.button("➖ Æ (Manual)", key="btn_sub", use_container_width=True):
             st.session_state.recursos_jefe = max(0, st.session_state.recursos_jefe - 1)
             st.rerun()
-    with col_der:
-        if st.button("➕ Æ", use_container_width=True):
+    with c_m2:
+        if st.button("➕ Æ (Manual)", key="btn_add", use_container_width=True):
             st.session_state.recursos_jefe += 1
             st.rerun()
 
@@ -150,9 +134,8 @@ def mostrar_tablero():
             st.caption("📤 ARCHIVO")
             for c_arc in ultimas:
                 st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
-    else:
-        if st.session_state.carta_activa:
-            st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+    elif st.session_state.carta_activa:
+        st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
 
     st.divider()
 
