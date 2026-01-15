@@ -22,16 +22,36 @@ def procesar_habilidades_carta(carta, marea_ya_cambio):
     return marea_ya_cambio
 
 def mostrar_tablero():
-    # --- CSS ACTUALIZADO ---
+    # --- CSS INTEGRADO ---
     st.markdown("""
         <style>
-            div.stButton > button { background-color: #ff4b4b !important; color: white !important; font-weight: bold; border-radius: 10px; }
-            .compact-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; background: #1a1c23; }
+            /* Botones de acción principales */
+            div.stButton > button { 
+                background-color: #ff4b4b !important; 
+                color: white !important; 
+                font-weight: bold; 
+                border-radius: 10px; 
+            }
+            
+            /* Tabla de resumen y contenedores oscuros */
+            .compact-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-bottom: 2px; 
+                background: #1a1c23; 
+            }
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
-            /* Cambio a color blanco para el texto del recolector */
             .recolector { color: #ffffff; font-weight: bold; font-size: 12px; }
+
+            /* Estilo específico para botones de gestión (Mismo fondo que la tabla) */
+            div[data-testid="column"] button {
+                background-color: #1a1c23 !important;
+                border: 1px solid #333 !important;
+                color: #ffffff !important;
+                height: 2.5em !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -61,7 +81,7 @@ def mostrar_tablero():
                     st.session_state.descarte.append(c_arc)
             st.session_state.ultimas_desarchivadas = cartas_a_desarchivar
 
-        # B. Mover carta anterior a la mesa
+        # B. Mover carta activa anterior a la mesa
         if st.session_state.carta_activa:
             c_v = st.session_state.carta_activa
             if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -102,15 +122,13 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # GESTIÓN MANUAL DE ÆMBAR
-    col_menos, col_txt, col_mas = st.columns([1, 2, 1])
-    with col_menos:
+    # GESTIÓN MANUAL DE ÆMBAR (Botones alineados uno al lado del otro)
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("➖ Æ", use_container_width=True):
             st.session_state.recursos_jefe = max(0, st.session_state.recursos_jefe - 1)
             st.rerun()
-    with col_txt:
-        st.markdown("<p style='text-align:center; font-size:12px; color:#888; margin-top:10px;'>Gestión manual de Æmbar</p>", unsafe_allow_html=True)
-    with col_mas:
+    with col2:
         if st.button("➕ Æ", use_container_width=True):
             st.session_state.recursos_jefe += 1
             st.rerun()
@@ -138,7 +156,7 @@ def mostrar_tablero():
 
     # --- 4. MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.subheader("Mesa de Batalla")
+        st.subheader("🏟️ Mesa de Batalla")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
