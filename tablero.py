@@ -8,7 +8,6 @@ def mostrar_tablero():
     # --- CSS CORREGIDO PARA MÓVIL ---
     st.markdown("""
         <style>
-            /* Asegurar visibilidad del botón */
             div.stButton > button {
                 background-color: #ff4b4b !important;
                 color: white !important;
@@ -17,7 +16,6 @@ def mostrar_tablero():
                 height: 3em !important;
                 margin-top: 10px !important;
             }
-            /* Reducir espacios de Streamlit */
             .main .block-container { padding-top: 1rem !important; }
             .compact-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; background: #1a1c23; }
@@ -27,10 +25,12 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (Visible y Prioritario) ---
+    # --- 1. BOTÓN REVELAR (Con lógica de Marea Automática) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         marea.gestionar_avance_keyraken()
+        
         if st.session_state.mazo:
+            # Mover carta anterior
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -39,9 +39,20 @@ def mostrar_tablero():
                 else:
                     st.session_state.descarte.append(c_v)
             
-            st.session_state.carta_activa = st.session_state.mazo.pop(0)
-            regalo = st.session_state.carta_activa.get('ambar_regalo', 0)
+            # Revelar nueva carta
+            nueva_c = st.session_state.mazo.pop(0)
+            st.session_state.carta_activa = nueva_c
+            
+            # --- NUEVA LÓGICA: CAMBIO DE MAREA ---
+            # Si la carta tiene la propiedad sube_marea: True
+            if nueva_c.get('sube_marea') == True:
+                st.session_state.marea = "Alta"
+                st.toast("🌊 ¡La Marea ha subido a ALTA!")
+            
+            # Sumar ámbar de regalo
+            regalo = nueva_c.get('ambar_regalo', 0)
             st.session_state.recursos_jefe += regalo
+            
             st.rerun()
 
     # --- 2. TABLA DE RESUMEN ---
@@ -78,7 +89,7 @@ def mostrar_tablero():
 
     # --- 4. MESA (CARRIL) ---
     if st.session_state.mesa:
-        cols = st.columns(2) # En móvil 2 columnas es más cómodo que 3
+        cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
@@ -91,4 +102,3 @@ def mostrar_tablero():
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
-            
