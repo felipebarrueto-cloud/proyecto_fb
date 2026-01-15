@@ -26,24 +26,24 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (CON LÓGICA DE HABILIDADES Y MAREA) ---
+    # --- 1. BOTÓN REVELAR (CON LÓGICA DE HABILIDADES, MAREA Y PRESA) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         
         # Guardamos estado inicial para la regla de marea
         marea_inicial = st.session_state.marea
         
-        # Paso A: El Keyraken intenta avanzar (puede bajar la marea aquí)
+        # PASO 1: El Keyraken intenta avanzar (puede bajar la marea aquí)
         marea.gestionar_avance_keyraken()
         
         # Detectar si la marea ya cambió por el avance
         marea_ya_cambio = st.session_state.marea != marea_inicial
         
-        # Reducir penalización de robo si existe (inicio de nuevo ciclo)
+        # Reducir penalización de robo si existe
         if st.session_state.get('penalizacion_robo', 0) > 0:
             st.session_state.penalizacion_robo -= 1
 
         if st.session_state.mazo:
-            # Paso B: Gestión de carta activa anterior
+            # PASO 2: Gestión de carta activa anterior (Mover a la mesa)
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -52,11 +52,19 @@ def mostrar_tablero():
                 else:
                     st.session_state.descarte.append(c_v)
             
-            # Paso C: Revelar nueva carta
+            # PASO 3: Revelar nueva carta
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # --- PASO D: PROCESAR HABILIDADES ESPECIALES ---
+            # --- AJUSTE: HABILIDAD BASE VS PRESA ---
+            # Si la carta tiene la propiedad 'presa': True, no genera ambar y hace daño.
+            if nueva_c.get("presa") == True:
+                st.error("🦈 ¡PRESA! El Jefe no genera Æmbar y realiza 3 de daño.")
+            else:
+                st.session_state.recursos_jefe += 1
+                st.toast("🟡 Habilidad Base: +1 Æmbar generado.")
+
+            # --- PASO 4: PROCESAR HABILIDADES ESPECIALES ---
             hab = nueva_c.get("habilidad")
             valor = nueva_c.get("valor", 0)
 
@@ -67,7 +75,7 @@ def mostrar_tablero():
                         st.session_state.archivo_jefe.append(st.session_state.mazo.pop(0))
                 st.toast(f"📦 Archivadas {valor} cartas.")
 
-            # 2. Forzar Marea Baja (Inmediato)
+            # 2. Forzar Marea Baja
             if hab == "forzar_marea_baja" and st.session_state.marea == "Alta":
                 if not marea_ya_cambio:
                     st.session_state.marea = "Baja"
@@ -89,7 +97,7 @@ def mostrar_tablero():
                 else:
                     st.toast("🚫 Marea bloqueada: ya cambió este turno.")
             
-            # Cobrar Ámbar de regalo
+            # Cobrar Ámbar de regalo de la carta (adicional al base)
             st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             
             st.rerun()
@@ -116,9 +124,8 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # Alerta de penalización si está activa
     if st.session_state.get('penalizacion_robo', 0) > 0:
-        st.warning(f"⚠️ Penalización de Robo activa: {st.session_state.penalizacion_robo} turnos restantes.")
+        st.warning(f"⚠️ Penalización de Robo activa: {st.session_state.penalizacion_robo} turnos.")
 
     # --- 3. CARTA ACTIVA ---
     if st.session_state.carta_activa:
@@ -126,7 +133,9 @@ def mostrar_tablero():
         ruta = RUTA_BASE + c['img']
         if os.path.exists(ruta):
             st.image(ruta, use_container_width=True)
-            if c['tipo'] == "CRIATURA":
+            if c.get("presa"):
+                st.error("CARÁCTER: PRESA (Ataque base de 3 daño)")
+            elif c['tipo'] == "CRIATURA":
                 st.caption(f"⚠️ Recién llegada: Hará {c.get('defensa')} de daño al próximo turno.")
     
     st.divider()
