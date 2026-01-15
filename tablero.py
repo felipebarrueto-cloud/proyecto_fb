@@ -33,14 +33,21 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (ORDEN LÓGICO DE TURNOS) ---
+    # --- 1. BOTÓN REVELAR (CON REGLA DE 1 CAMBIO DE MAREA POR TURNO) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         
+        # Guardamos el estado inicial para detectar cambios
+        marea_inicial = st.session_state.marea
+        
         # PASO 1: El Keyraken intenta avanzar con los recursos actuales
+        # Si tiene éxito y la marea estaba alta, esta bajará aquí.
         marea.gestionar_avance_keyraken()
         
+        # Verificamos si la marea ya cambió (bajó por pago)
+        marea_ya_cambio = st.session_state.marea != marea_inicial
+        
         if st.session_state.mazo:
-            # PASO 2: Mover la carta activa anterior a la mesa (aquí activa su daño)
+            # PASO 2: Mover la carta activa anterior a la mesa
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -53,11 +60,16 @@ def mostrar_tablero():
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # PASO 4: Aplicar efectos de la nueva carta (Marea y Regalo)
+            # PASO 4: Aplicar efectos de la nueva carta
+            # REGLA: Solo sube si la marea NO ha cambiado ya en este turno (paso 1)
             if nueva_c.get('sube_marea') == True:
-                st.session_state.marea = "Alta"
-                st.toast("🌊 ¡La Marea ha subido a ALTA!")
+                if not marea_ya_cambio:
+                    st.session_state.marea = "Alta"
+                    st.toast("🌊 ¡La Marea ha subido a ALTA!")
+                else:
+                    st.toast("🚫 Marea bloqueada: ya cambió este turno.")
             
+            # Cobrar Ámbar de regalo
             regalo = nueva_c.get('ambar_regalo', 0)
             st.session_state.recursos_jefe += regalo
             
@@ -76,7 +88,7 @@ def mostrar_tablero():
                 </td>
                 <td style="width: 55%;">
                     <span class="label">RECURSOS Y MAREA</span>
-                    <span class="gema-dorada">💎</span>
+                    <span class="gema-dorada">🔶</span>
                     <span class="texto-recurso">{st.session_state.recursos_jefe} Æ</span> 
                     <span style="color:white; font-weight:bold;"> | 🌊 {st.session_state.marea}</span>
                     <br><span style="font-size:10px; color:#666;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
