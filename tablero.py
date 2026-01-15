@@ -143,7 +143,7 @@ def mostrar_tablero():
 
     # --- 4. MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.subheader("🏟️ Mesa de Batalla")
+        st.subheader("Mesa de Batalla")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
@@ -152,9 +152,9 @@ def mostrar_tablero():
                     if carta['tipo'] == "CRIATURA":
                         # Mostrar si es recolectora o atacante
                         if carta.get('no_hace_danio'):
-                            st.markdown(f"<span class='recolector'>✨ RECOLECTOR (+{carta.get('ambar_generado')} Æ)</span>", unsafe_allow_html=True)
+                            st.markdown(f"<span class='recolector'> Cosechar 💎 (+{carta.get('ambar_generado')} Æ)</span>", unsafe_allow_html=True)
                         
-                        st.write(f"❤️ {carta['def_actual']} {'(⛓️ Presa)' if carta.get('presa') else ''}")
+                        st.write(f"❤️ {carta['def_actual']} {'(Presa)' if carta.get('presa') else ''}")
                         
                         if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
                             carta['def_actual'] -= 1
