@@ -1,11 +1,11 @@
-import streamlit as st
+import streamlit st
 import os
 import marea
 
 RUTA_BASE = "proyecto_keyforge/"
 
 def mostrar_tablero():
-    # --- CSS CORREGIDO PARA MÓVIL ---
+    # --- CSS CORREGIDO PARA MÓVIL Y GEMA DORADA ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -21,16 +21,27 @@ def mostrar_tablero():
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; background: #1a1c23; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-red { color: #ff4b4b; font-size: 18px; font-weight: bold; }
-            .val-blue { color: #00d2ff; font-size: 18px; font-weight: bold; }
+            /* Estilo para la Gema Dorada teñida */
+            .gema-dorada {
+                display: inline-block;
+                background: radial-gradient(circle at 30% 30%, #FFF5A5 0%, #FFD700 50%, #B8860B 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                filter: drop-shadow(0px 0px 5px rgba(255, 215, 0, 0.7));
+                font-weight: bold;
+            }
+            .texto-recurso { color: #FFEC8B; font-size: 18px; font-weight: bold; vertical-align: middle; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (Con lógica de Marea Automática) ---
+    # --- 1. BOTÓN REVELAR (ORDEN LÓGICO DE TURNOS) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
+        
+        # PASO 1: El Keyraken intenta avanzar con los recursos actuales
         marea.gestionar_avance_keyraken()
         
         if st.session_state.mazo:
-            # Mover carta anterior
+            # PASO 2: Mover la carta activa anterior a la mesa (aquí activa su daño)
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -39,17 +50,15 @@ def mostrar_tablero():
                 else:
                     st.session_state.descarte.append(c_v)
             
-            # Revelar nueva carta
+            # PASO 3: Revelar la nueva carta del mazo
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # --- NUEVA LÓGICA: CAMBIO DE MAREA ---
-            # Si la carta tiene la propiedad sube_marea: True
+            # PASO 4: Aplicar efectos de la nueva carta (Marea y Regalo)
             if nueva_c.get('sube_marea') == True:
                 st.session_state.marea = "Alta"
                 st.toast("🌊 ¡La Marea ha subido a ALTA!")
             
-            # Sumar ámbar de regalo
             regalo = nueva_c.get('ambar_regalo', 0)
             st.session_state.recursos_jefe += regalo
             
@@ -57,37 +66,38 @@ def mostrar_tablero():
 
     # --- 2. TABLA DE RESUMEN ---
     daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
-    daño_activa = 0
-    if st.session_state.carta_activa and st.session_state.carta_activa['tipo'] == "CRIATURA":
-        daño_activa = st.session_state.carta_activa.get('defensa', 0)
-    
-    poder_total = 3 + daño_mesa + daño_activa
+    poder_total = 3 + daño_mesa
 
     st.markdown(f"""
         <table class="compact-table">
             <tr>
                 <td style="width: 45%;">
-                    <span class="label">⚔️ PODER TOTAL</span>
+                    <span class="label">💥 PODER TOTAL</span>
                     <span class="val-red">{poder_total}</span>
                 </td>
                 <td style="width: 55%;">
-                    <span class="label">💎 {st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
-                    <span style="color:white; font-size:12px;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
+                    <span class="label">RECURSOS Y MAREA</span>
+                    <span class="gema-dorada">💎</span>
+                    <span class="texto-recurso">{st.session_state.recursos_jefe} Æ</span> 
+                    <span style="color:white; font-weight:bold;"> | 🌊 {st.session_state.marea}</span>
+                    <br><span style="font-size:10px; color:#666;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
                 </td>
             </tr>
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. CARTA ACTIVA ---
+    # --- 3. CARTA ACTIVA (RECIÉN REVELADA) ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
         ruta = RUTA_BASE + c['img']
         if os.path.exists(ruta):
             st.image(ruta, use_container_width=True)
+            if c['tipo'] == "CRIATURA":
+                st.caption(f"⚠️ Recién llegada: Hará {c.get('defensa')} de daño al próximo turno.")
     
     st.divider()
 
-    # --- 4. MESA (CARRIL) ---
+    # --- 4. MESA (CARRIL DE AMENAZAS) ---
     if st.session_state.mesa:
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
