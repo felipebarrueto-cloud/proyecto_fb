@@ -58,34 +58,34 @@ def mostrar_tablero():
             st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             st.rerun()
 
-    # --- 2. CÁLCULO DE PODER (CORREGIDO: Solo si hay carta activa) ---
+    # --- 2. CÁLCULO DE PODER (CORREGIDO) ---
     poder_total = 0
     detalle_base = ""
 
     if st.session_state.carta_activa:
-    # A. Comprobar si hay PRESA (activa el daño base del jefe inmediatamente)
+        # A. Comprobar si hay PRESA (activa el daño base del jefe inmediatamente)
         presa_en_mesa = any(c.get('presa') == True for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
         presa_activa = st.session_state.carta_activa.get('presa') == True
     
-    # El daño base de 3 se aplica SIEMPRE que haya una presa (incluso si acaba de aparecer)
-    daño_base = 3 if (presa_en_mesa or presa_activa) else 0
+        # El daño base de 3 se aplica SIEMPRE que haya una presa (incluso si acaba de aparecer)
+        daño_base = 3 if (presa_en_mesa or presa_activa) else 0
     
-    # B. Daño de criaturas en mesa (Criaturas de turnos anteriores)
-    daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+        # B. Daño de criaturas en mesa (Criaturas de turnos anteriores)
+        daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
     
-    # C. Daño de la criatura activa (REGLA: Es 0 porque acaba de ser revelada)
-    # Solo sumará su poder cuando el jugador pulse "Revelar" otra vez y pase a la mesa
-    daño_activa_inmediato = 0 
+        # C. Daño de la criatura activa (REGLA: Es 0 porque acaba de ser revelada / Agotada)
+        daño_activa_inmediato = 0 
     
-    poder_total = daño_base + daño_mesa + daño_activa_inmediato
+        poder_total = daño_base + daño_mesa + daño_activa_inmediato
     
-    if daño_base > 0:
-        detalle_base = f"(Base 3 por Presa + {daño_mesa} Mesa)"
-    else:
-        detalle_base = f"(Solo Mesa: {daño_mesa} | Jefe: +1 Æ por falta de Presa)"
+        if daño_base > 0:
+            detalle_base = f"(Base 3 por Presa + {daño_mesa} Mesa)"
+        else:
+            detalle_base = f"(Solo Mesa: {daño_mesa} | Jefe: +1 Æ)"
     else:
         detalle_base = "Esperando primer turno..."
 
+    # --- TABLA DE RESUMEN ---
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -108,8 +108,9 @@ def mostrar_tablero():
     # --- 3. RENDERIZADO DE CARTAS ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
-        if os.path.exists(RUTA_BASE + c['img']):
-            st.image(RUTA_BASE + c['img'], use_container_width=True)
+        ruta = RUTA_BASE + c['img']
+        if os.path.exists(ruta):
+            st.image(ruta, caption="CARTA REVELADA (AGOTADA)", use_container_width=True)
 
     st.divider()
 
@@ -119,8 +120,9 @@ def mostrar_tablero():
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
-                    if os.path.exists(RUTA_BASE + carta['img']):
-                        st.image(RUTA_BASE + carta['img'], use_container_width=True)
+                    ruta_m = RUTA_BASE + carta['img']
+                    if os.path.exists(ruta_m):
+                        st.image(ruta_m, use_container_width=True)
                     if carta['tipo'] == "CRIATURA":
                         st.write(f"❤️ **{carta['def_actual']}** {'(⛓️ Presa)' if carta.get('presa') else ''}")
                         if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
