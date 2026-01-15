@@ -5,7 +5,7 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def mostrar_tablero():
-    # --- CSS CORREGIDO ---
+    # --- CSS MANTENIDO ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -26,7 +26,7 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (HABILIDAD BASE EXCLUSIVA) ---
+    # --- 1. BOTÓN REVELAR ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         
         marea_inicial = st.session_state.marea
@@ -39,7 +39,7 @@ def mostrar_tablero():
             st.session_state.penalizacion_robo -= 1
 
         if st.session_state.mazo:
-            # PASO B: Gestión de carta activa anterior
+            # PASO B: Gestión de carta activa anterior (Mover a la mesa)
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -52,16 +52,20 @@ def mostrar_tablero():
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # --- LÓGICA DE HABILIDAD EXCLUSIVA ---
-            # Si es presa: Ataca. Si NO es presa: Genera 1 AE.
-            if nueva_c.get("presa") == True:
-                # El jefe final ataca con 3 de daño
-                st.error("🦈 ¡HABILIDAD PRESA! El Jefe ataca con 3 de daño base.")
-                # (Opcional: aquí puedes restar vida a una variable de jugador)
+            # --- NUEVA LÓGICA: CHEQUEAR PRESA EN REVELADA Y EN MESA ---
+            # Comprobamos si hay alguna criatura en la mesa que sea 'presa'
+            presa_en_mesa = any(carta.get('presa') == True for carta in st.session_state.mesa)
+            presa_revelada = nueva_c.get('presa') == True
+
+            if presa_revelada or presa_en_mesa:
+                # El jefe final ataca y NO genera el ámbar base
+                st.error("🦈 ¡HABILIDAD PRESA ACTIVA! El Jefe ataca con 3 de daño base (No genera Æmbar).")
+                if presa_en_mesa and not presa_revelada:
+                    st.info("💡 El ataque fue activado por una criatura en la mesa.")
             else:
-                # El jefe no ataca, genera 1 ambar
+                # El jefe no ataca, genera 1 ambar base
                 st.session_state.recursos_jefe += 1
-                st.toast("🟡 Habilidad Base: El Jefe genera 1 Æmbar.")
+                st.toast("💎 Habilidad Base: El Jefe genera 1 Æmbar.")
 
             # --- PASO D: PROCESAR HABILIDADES ADICIONALES ---
             hab = nueva_c.get("habilidad")
@@ -79,18 +83,18 @@ def mostrar_tablero():
                 if not marea_ya_cambio:
                     st.session_state.marea = "Baja"
                     marea_ya_cambio = True
-                    st.toast("📉 Marea baja por efecto.")
+                    st.toast("🌊 Marea baja por efecto.")
 
             # Penalización robo
             if hab == "penalizar_robo":
                 st.session_state.penalizacion_robo = st.session_state.get('penalizacion_robo', 0) + valor
 
-            # Subir marea estándar
+            # Subir marea estándar de la carta
             if nueva_c.get('sube_marea') == True and not marea_ya_cambio:
                 st.session_state.marea = "Alta"
-                st.toast("🌊 Marea ALTA")
+                st.toast("🌊 Marea A")lta
             
-            # Sumar ambar de regalo propio de la carta (si tiene)
+            # Ámbar de regalo extra de la carta
             st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             
             st.rerun()
