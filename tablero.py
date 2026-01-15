@@ -101,7 +101,26 @@ def mostrar_tablero():
         poder_total = daño_base + daño_mesa
         detalle = f"(Base 3 + Mesa)" if daño_base > 0 else f"(Mesa: {daño_mesa})"
 
-    # --- TABLA DE RESUMEN ---
+  # --- CÁLCULO DE DATOS PARA LA TABLA ---
+    n_archivo = len(st.session_state.get('archivo_jefe', []))
+    poder_total = 0
+    detalle = "Esperando..."
+
+    if st.session_state.carta_activa:
+        # Lógica de Presa para el daño base
+        presa_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+        presa_activa = st.session_state.carta_activa.get('presa') == True
+        
+        daño_base = 3 if (presa_mesa or presa_activa) else 0
+        daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+        
+        # La carta activa no suma su defensa aún (está agotada)
+        poder_total = daño_base + daño_mesa
+        detalle = f"Base 3 + Mesa" if daño_base > 0 else f"Mesa: {daño_mesa}"
+    else:
+        detalle = "Turno 0"
+
+    # --- TABLA DE RESUMEN ACTUALIZADA (3 COLUMNAS) ---
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -110,18 +129,20 @@ def mostrar_tablero():
                     <span class="val-white">{poder_total}</span>
                     <br><span style="font-size:8px; color:#888;">{detalle}</span>
                 </td>
+                <td style="width: 34%;">
+                    <span class="label">💎 {st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
+                    <span style="color:white; font-size:11px;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
+                    <br><span style="font-size:8px; color:#888;">Estatus Jefe</span>
+                </td>
                 <td style="width: 33%;">
                     <span class="label">📦 ARCHIVO</span>
                     <span class="val-white">{n_archivo}</span>
-                </td>
-                <td style="width: 34%;">
-                    <span class="label">💎 {st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
-                    <span style="color:white; font-size:10px;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
+                    <br><span style="font-size:8px; color:#888;">Cartas listas</span>
                 </td>
             </tr>
         </table>
     """, unsafe_allow_html=True)
-
+    
     # --- 3. RENDERIZADO ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
