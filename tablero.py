@@ -7,12 +7,10 @@ RUTA_BASE = "proyecto_keyforge/"
 def procesar_habilidades_carta(carta, marea_ya_cambio):
     """Procesa ámbar, marea y habilidades de cartas (archivadas o reveladas)"""
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
-    
     if carta.get('sube_marea') == True and not marea_ya_cambio:
         st.session_state.marea = "Alta"
         st.toast(f"🌊 Marea Alta: {carta['nombre']}")
         marea_ya_cambio = True
-        
     if carta.get("habilidad") == "archivar":
         valor = carta.get("valor", 0)
         for _ in range(valor):
@@ -22,11 +20,11 @@ def procesar_habilidades_carta(carta, marea_ya_cambio):
     return marea_ya_cambio
 
 def mostrar_tablero():
-    # --- CSS DE ALTA PRIORIDAD ---
+    # --- CSS DE ESPECIFICIDAD MÁXIMA ---
     st.markdown("""
         <style>
             /* 1. Botón REVELAR (Rojo y Grande) */
-            div.stButton > button:first-child { 
+            div.stButton > button:first-of-type { 
                 background-color: #ff4b4b !important; 
                 color: white !important; 
                 font-weight: bold; 
@@ -39,27 +37,29 @@ def mostrar_tablero():
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
 
-            /* 3. BOTONES MANUALES (Gris oscuro y forzar fila en móvil) */
-            /* Forzamos al contenedor de las columnas a no romperse en móvil */
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_"]) {
+            /* 3. FORZAR BOTONES MANUALES LADO A LADO EN MÓVIL */
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
                 display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
-                gap: 10px !important;
+                gap: 5px !important;
             }
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_"]) div[data-testid="column"] {
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) div[data-testid="column"] {
                 width: 50% !important;
                 flex: 1 1 50% !important;
                 min-width: 50% !important;
             }
 
-            /* Estilo para que no sean rojos y se integren con la tabla */
-            button[key="btn_sub"], button[key="btn_add"] {
+            /* 4. ELIMINAR COLOR ROJO DE BOTONES MANUALES */
+            /* Usamos selectores ultra específicos para sobreescribir cualquier estilo global */
+            div.stButton > button[key="btn_manual_sub"], 
+            div.stButton > button[key="btn_manual_add"] {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #444 !important;
                 font-size: 13px !important;
                 height: 2.8em !important;
+                box-shadow: none !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -124,19 +124,19 @@ def mostrar_tablero():
     """, unsafe_allow_html=True)
 
     # Botones de gestión manual (Forzados lado a lado y color gris tabla)
-    c_m1, c_m2 = st.columns(2)
-    with c_m1:
-        if st.button("➖ Æ", key="btn_sub", use_container_width=True):
+    c_manual1, c_manual2 = st.columns(2)
+    with c_manual1:
+        if st.button("➖ Æ", key="btn_manual_sub", use_container_width=True):
             st.session_state.recursos_jefe = max(0, st.session_state.recursos_jefe - 1)
             st.rerun()
-    with c_m2:
-        if st.button("➕ Æ", key="btn_add", use_container_width=True):
+    with c_manual2:
+        if st.button("➕ Æ", key="btn_manual_add", use_container_width=True):
             st.session_state.recursos_jefe += 1
             st.rerun()
 
     st.divider()
 
-    # --- 3. ÁREA DE REVELADO ---
+    # --- 3. ÁREA DE REVELADO Y MESA ---
     ultimas = st.session_state.get('ultimas_desarchivadas', [])
     if ultimas:
         c1, c2 = st.columns(2)
@@ -151,9 +151,6 @@ def mostrar_tablero():
     elif st.session_state.carta_activa:
         st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
 
-    st.divider()
-
-    # --- 4. MESA ---
     if st.session_state.mesa:
         st.subheader("Criaturas y Artefactos desplegados")
         cols = st.columns(2)
@@ -171,4 +168,3 @@ def mostrar_tablero():
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
-                    else: st.caption("💠 ARTEFACTO")
