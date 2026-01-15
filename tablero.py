@@ -30,33 +30,36 @@ def mostrar_tablero():
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
+            .recolector { color: #00ffcc; font-weight: bold; font-size: 12px; }
         </style>
     """, unsafe_allow_html=True)
 
     # --- 1. BOTÓN REVELAR ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
-        # LIMPIEZA AUTOMÁTICA: Borramos el aviso de desarchivadas del turno anterior
         st.session_state.ultimas_desarchivadas = []
         
         marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
 
-        # A. PROCESAR ARCHIVO (Vaciado inmediato a Mesa o Descarte)
+        # NUEVO: Generación de Æmbar de criaturas Recolectoras ya en mesa
+        for carta_mesa in st.session_state.mesa:
+            if carta_mesa.get('no_hace_danio') and carta_mesa.get('ambar_generado'):
+                st.session_state.recursos_jefe += carta_mesa['ambar_generado']
+                st.toast(f"✨ {carta_mesa['nombre']} generó {carta_mesa['ambar_generado']} Æ.")
+
+        # A. PROCESAR ARCHIVO
         if st.session_state.get('archivo_jefe'):
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
             
             for c_arc in cartas_a_desarchivar:
                 marea_ya_cambio = procesar_habilidades_carta(c_arc, marea_ya_cambio)
-                
                 if c_arc['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                     c_arc['def_actual'] = c_arc.get('defensa', 0)
                     st.session_state.mesa.append(c_arc)
                 else:
                     st.session_state.descarte.append(c_arc)
-            
-            # Guardamos para mostrar visualmente solo este turno
             st.session_state.ultimas_desarchivadas = cartas_a_desarchivar
 
         # B. Mover la carta activa anterior a la mesa
@@ -68,7 +71,7 @@ def mostrar_tablero():
             else:
                 st.session_state.descarte.append(c_v)
 
-        # C. Revelar nueva carta del mazo
+        # C. Revelar nueva carta
         if st.session_state.mazo:
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
@@ -89,11 +92,14 @@ def mostrar_tablero():
         p_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
         p_act = st.session_state.carta_activa.get('presa') == True
         base = 3 if (p_mesa or p_act) else 0
-        mesa_dmg = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA")
-        poder_total = base + mesa_dmg
-        detalle_poder = f"Base 3 + Mesa" if base > 0 else f"Mesa: {mesa_dmg}"
+        
+        # FILTRO: Solo sumamos daño si NO es recolectora
+        dmg_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa 
+                       if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
+        
+        poder_total = base + dmg_mesa
+        detalle_poder = f"Base 3 + Mesa" if base > 0 else f"Mesa: {dmg_mesa}"
 
-    # --- TABLA DE RESUMEN REORGANIZADA ---
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -116,9 +122,8 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. ÁREA DE REVELADO (Doble Columna) ---
+    # --- 3. ÁREA DE REVELADO ---
     ultimas = st.session_state.get('ultimas_desarchivadas', [])
-    
     if ultimas:
         col_revelada, col_archivo = st.columns(2)
         with col_revelada:
@@ -130,7 +135,6 @@ def mostrar_tablero():
             for c_arc in ultimas:
                 st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
     else:
-        # Si no hay nada desarchivado, mostrar la carta revelada centrada o normal
         if st.session_state.carta_activa:
             st.caption("🆕 REVELADA (Agotada)")
             st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
@@ -139,14 +143,19 @@ def mostrar_tablero():
 
     # --- 4. MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.subheader("Mesa de Batalla")
+        st.subheader("🏟️ Mesa de Batalla")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
                     st.image(RUTA_BASE + carta['img'], use_container_width=True)
                     if carta['tipo'] == "CRIATURA":
+                        # Mostrar si es recolectora o atacante
+                        if carta.get('no_hace_danio'):
+                            st.markdown(f"<span class='recolector'>✨ RECOLECTOR (+{carta.get('ambar_generado')} Æ)</span>", unsafe_allow_html=True)
+                        
                         st.write(f"❤️ {carta['def_actual']} {'(⛓️ Presa)' if carta.get('presa') else ''}")
+                        
                         if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
                             carta['def_actual'] -= 1
                             if carta['def_actual'] <= 0:
