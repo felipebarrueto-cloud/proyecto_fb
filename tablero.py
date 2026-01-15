@@ -91,7 +91,7 @@ def mostrar_tablero():
             <tr>
                 <td style="width: 45%;">
                     <span class="label">💥 PODER TOTAL</span>
-                    <span class="val-red">{poder_total}</span>
+                    <span class="val-white">{poder_total}</span>
                     <br><span style="font-size:9px; color:#888;">{detalle_base}</span>
                 </td>
                 <td style="width: 55%;">
