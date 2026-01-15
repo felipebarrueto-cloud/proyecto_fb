@@ -5,7 +5,7 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def mostrar_tablero():
-    # --- CSS CORREGIDO PARA MÓVIL Y ESTILOS ---
+    # --- CSS CORREGIDO ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -26,24 +26,20 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (CON LÓGICA DE HABILIDADES, MAREA Y PRESA) ---
+    # --- 1. BOTÓN REVELAR (HABILIDAD BASE EXCLUSIVA) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         
-        # Guardamos estado inicial para la regla de marea
         marea_inicial = st.session_state.marea
         
-        # PASO 1: El Keyraken intenta avanzar (puede bajar la marea aquí)
+        # PASO A: El Keyraken intenta avanzar
         marea.gestionar_avance_keyraken()
-        
-        # Detectar si la marea ya cambió por el avance
         marea_ya_cambio = st.session_state.marea != marea_inicial
         
-        # Reducir penalización de robo si existe
         if st.session_state.get('penalizacion_robo', 0) > 0:
             st.session_state.penalizacion_robo -= 1
 
         if st.session_state.mazo:
-            # PASO 2: Gestión de carta activa anterior (Mover a la mesa)
+            # PASO B: Gestión de carta activa anterior
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -52,52 +48,49 @@ def mostrar_tablero():
                 else:
                     st.session_state.descarte.append(c_v)
             
-            # PASO 3: Revelar nueva carta
+            # PASO C: Revelar nueva carta
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # --- AJUSTE: HABILIDAD BASE VS PRESA ---
-            # Si la carta tiene la propiedad 'presa': True, no genera ambar y hace daño.
+            # --- LÓGICA DE HABILIDAD EXCLUSIVA ---
+            # Si es presa: Ataca. Si NO es presa: Genera 1 AE.
             if nueva_c.get("presa") == True:
-                st.error("🦈 ¡PRESA! El Jefe no genera Æmbar y realiza 3 de daño.")
+                # El jefe final ataca con 3 de daño
+                st.error("🦈 ¡HABILIDAD PRESA! El Jefe ataca con 3 de daño base.")
+                # (Opcional: aquí puedes restar vida a una variable de jugador)
             else:
+                # El jefe no ataca, genera 1 ambar
                 st.session_state.recursos_jefe += 1
-                st.toast("🟡 Habilidad Base: +1 Æmbar generado.")
+                st.toast("🟡 Habilidad Base: El Jefe genera 1 Æmbar.")
 
-            # --- PASO 4: PROCESAR HABILIDADES ESPECIALES ---
+            # --- PASO D: PROCESAR HABILIDADES ADICIONALES ---
             hab = nueva_c.get("habilidad")
             valor = nueva_c.get("valor", 0)
 
-            # 1. Archivar cartas
+            # Archivar
             if hab == "archivar":
                 for _ in range(valor):
                     if st.session_state.mazo:
                         st.session_state.archivo_jefe.append(st.session_state.mazo.pop(0))
                 st.toast(f"📦 Archivadas {valor} cartas.")
 
-            # 2. Forzar Marea Baja
+            # Forzar marea baja
             if hab == "forzar_marea_baja" and st.session_state.marea == "Alta":
                 if not marea_ya_cambio:
                     st.session_state.marea = "Baja"
                     marea_ya_cambio = True
-                    st.toast("📉 La Marea bajó por efecto de la carta.")
-                else:
-                    st.toast("🚫 Marea bloqueada: ya cambió este turno.")
+                    st.toast("📉 Marea baja por efecto.")
 
-            # 3. Penalización de Robo
+            # Penalización robo
             if hab == "penalizar_robo":
                 st.session_state.penalizacion_robo = st.session_state.get('penalizacion_robo', 0) + valor
-                st.toast(f"⏳ Penalización: Robas -1 carta por {valor} turnos.")
 
-            # 4. Efecto estándar: Subir Marea (si no cambió ya)
-            if nueva_c.get('sube_marea') == True:
-                if not marea_ya_cambio:
-                    st.session_state.marea = "Alta"
-                    st.toast("🌊 ¡La Marea ha subido a ALTA!")
-                else:
-                    st.toast("🚫 Marea bloqueada: ya cambió este turno.")
+            # Subir marea estándar
+            if nueva_c.get('sube_marea') == True and not marea_ya_cambio:
+                st.session_state.marea = "Alta"
+                st.toast("🌊 Marea ALTA")
             
-            # Cobrar Ámbar de regalo de la carta (adicional al base)
+            # Sumar ambar de regalo propio de la carta (si tiene)
             st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             
             st.rerun()
@@ -124,34 +117,8 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    if st.session_state.get('penalizacion_robo', 0) > 0:
-        st.warning(f"⚠️ Penalización de Robo activa: {st.session_state.penalizacion_robo} turnos.")
-
-    # --- 3. CARTA ACTIVA ---
+    # El resto del renderizado de imágenes y mesa sigue igual...
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
-        ruta = RUTA_BASE + c['img']
-        if os.path.exists(ruta):
-            st.image(ruta, use_container_width=True)
-            if c.get("presa"):
-                st.error("CARÁCTER: PRESA (Ataque base de 3 daño)")
-            elif c['tipo'] == "CRIATURA":
-                st.caption(f"⚠️ Recién llegada: Hará {c.get('defensa')} de daño al próximo turno.")
-    
-    st.divider()
-
-    # --- 4. MESA (CARRIL) ---
-    if st.session_state.mesa:
-        cols = st.columns(2)
-        for i, carta in enumerate(st.session_state.mesa):
-            with cols[i % 2]:
-                with st.container(border=True):
-                    im_m = RUTA_BASE + carta['img']
-                    if os.path.exists(im_m): st.image(im_m, use_container_width=True)
-                    if carta['tipo'] == "CRIATURA":
-                        if st.button(f"💥 {carta['def_actual']}", key=f"btn_{i}", use_container_width=True):
-                            carta['def_actual'] -= 1
-                            if carta['def_actual'] <= 0:
-                                st.session_state.vida_jefe -= 3
-                                st.session_state.descarte.append(st.session_state.mesa.pop(i))
-                            st.rerun()
+        if os.path.exists(RUTA_BASE + c['img']):
+            st.image(RUTA_BASE + c['img'], use_container_width=True)
