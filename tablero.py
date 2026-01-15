@@ -5,7 +5,7 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def mostrar_tablero():
-    # --- CSS CORREGIDO PARA MÓVIL Y GEMA DORADA ---
+    # --- CSS CORREGIDO PARA MÓVIL Y ESTILOS ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -21,33 +21,29 @@ def mostrar_tablero():
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; background: #1a1c23; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-red { color: #ff4b4b; font-size: 18px; font-weight: bold; }
-            .gema-dorada {
-                display: inline-block;
-                background: radial-gradient(circle at 30% 30%, #FFF5A5 0%, #FFD700 50%, #B8860B 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                filter: drop-shadow(0px 0px 5px rgba(255, 215, 0, 0.7));
-                font-weight: bold;
-            }
-            .texto-recurso { color: #FFEC8B; font-size: 18px; font-weight: bold; vertical-align: middle; }
+            .texto-blanco { color: #ffffff; font-size: 18px; font-weight: bold; vertical-align: middle; }
+            .gema { font-size: 18px; vertical-align: middle; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (CON REGLA DE 1 CAMBIO DE MAREA POR TURNO) ---
+    # --- 1. BOTÓN REVELAR (CON LÓGICA DE HABILIDADES Y MAREA) ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         
-        # Guardamos el estado inicial para detectar cambios
+        # Guardamos estado inicial para la regla de marea
         marea_inicial = st.session_state.marea
         
-        # PASO 1: El Keyraken intenta avanzar con los recursos actuales
-        # Si tiene éxito y la marea estaba alta, esta bajará aquí.
+        # Paso A: El Keyraken intenta avanzar (puede bajar la marea aquí)
         marea.gestionar_avance_keyraken()
         
-        # Verificamos si la marea ya cambió (bajó por pago)
+        # Detectar si la marea ya cambió por el avance
         marea_ya_cambio = st.session_state.marea != marea_inicial
         
+        # Reducir penalización de robo si existe (inicio de nuevo ciclo)
+        if st.session_state.get('penalizacion_robo', 0) > 0:
+            st.session_state.penalizacion_robo -= 1
+
         if st.session_state.mazo:
-            # PASO 2: Mover la carta activa anterior a la mesa
+            # Paso B: Gestión de carta activa anterior
             if st.session_state.carta_activa:
                 c_v = st.session_state.carta_activa
                 if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -56,12 +52,36 @@ def mostrar_tablero():
                 else:
                     st.session_state.descarte.append(c_v)
             
-            # PASO 3: Revelar la nueva carta del mazo
+            # Paso C: Revelar nueva carta
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # PASO 4: Aplicar efectos de la nueva carta
-            # REGLA: Solo sube si la marea NO ha cambiado ya en este turno (paso 1)
+            # --- PASO D: PROCESAR HABILIDADES ESPECIALES ---
+            hab = nueva_c.get("habilidad")
+            valor = nueva_c.get("valor", 0)
+
+            # 1. Archivar cartas
+            if hab == "archivar":
+                for _ in range(valor):
+                    if st.session_state.mazo:
+                        st.session_state.archivo_jefe.append(st.session_state.mazo.pop(0))
+                st.toast(f"📦 Archivadas {valor} cartas.")
+
+            # 2. Forzar Marea Baja (Inmediato)
+            if hab == "forzar_marea_baja" and st.session_state.marea == "Alta":
+                if not marea_ya_cambio:
+                    st.session_state.marea = "Baja"
+                    marea_ya_cambio = True
+                    st.toast("📉 La Marea bajó por efecto de la carta.")
+                else:
+                    st.toast("🚫 Marea bloqueada: ya cambió este turno.")
+
+            # 3. Penalización de Robo
+            if hab == "penalizar_robo":
+                st.session_state.penalizacion_robo = st.session_state.get('penalizacion_robo', 0) + valor
+                st.toast(f"⏳ Penalización: Robas -1 carta por {valor} turnos.")
+
+            # 4. Efecto estándar: Subir Marea (si no cambió ya)
             if nueva_c.get('sube_marea') == True:
                 if not marea_ya_cambio:
                     st.session_state.marea = "Alta"
@@ -70,8 +90,7 @@ def mostrar_tablero():
                     st.toast("🚫 Marea bloqueada: ya cambió este turno.")
             
             # Cobrar Ámbar de regalo
-            regalo = nueva_c.get('ambar_regalo', 0)
-            st.session_state.recursos_jefe += regalo
+            st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             
             st.rerun()
 
@@ -96,6 +115,10 @@ def mostrar_tablero():
             </tr>
         </table>
     """, unsafe_allow_html=True)
+
+    # Alerta de penalización si está activa
+    if st.session_state.get('penalizacion_robo', 0) > 0:
+        st.warning(f"⚠️ Penalización de Robo activa: {st.session_state.penalizacion_robo} turnos restantes.")
 
     # --- 3. CARTA ACTIVA ---
     if st.session_state.carta_activa:
