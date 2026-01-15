@@ -63,18 +63,28 @@ def mostrar_tablero():
     detalle_base = ""
 
     if st.session_state.carta_activa:
-        # Solo calculamos si ya se empezó a jugar (hay una carta revelada)
+    # A. Comprobar si hay PRESA (activa el daño base del jefe inmediatamente)
         presa_en_mesa = any(c.get('presa') == True for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
         presa_activa = st.session_state.carta_activa.get('presa') == True
-        
-        daño_base = 3 if (presa_en_mesa or presa_activa) else 0
-        daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
-        daño_activa = st.session_state.carta_activa.get('defensa', 0) if st.session_state.carta_activa['tipo'] == "CRIATURA" else 0
-        
-        poder_total = daño_base + daño_mesa + daño_activa
-        detalle_base = '(Base 3 + Mesa)' if daño_base > 0 else '(Solo Mesa)'
+    
+    # El daño base de 3 se aplica SIEMPRE que haya una presa (incluso si acaba de aparecer)
+    daño_base = 3 if (presa_en_mesa or presa_activa) else 0
+    
+    # B. Daño de criaturas en mesa (Criaturas de turnos anteriores)
+    daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
+    
+    # C. Daño de la criatura activa (REGLA: Es 0 porque acaba de ser revelada)
+    # Solo sumará su poder cuando el jugador pulse "Revelar" otra vez y pase a la mesa
+    daño_activa_inmediato = 0 
+    
+    poder_total = daño_base + daño_mesa + daño_activa_inmediato
+    
+    if daño_base > 0:
+        detalle_base = f"(Base 3 por Presa + {daño_mesa} Mesa)"
     else:
-        detalle_base = "Esperando revelado..."
+        detalle_base = f"(Solo Mesa: {daño_mesa} | Jefe: +1 Æ por falta de Presa)"
+    else:
+        detalle_base = "Esperando primer turno..."
 
     st.markdown(f"""
         <table class="compact-table">
