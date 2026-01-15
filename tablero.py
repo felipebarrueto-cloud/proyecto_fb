@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import os
 import marea
 
@@ -21,7 +21,6 @@ def mostrar_tablero():
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; background: #1a1c23; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-red { color: #ff4b4b; font-size: 18px; font-weight: bold; }
-            /* Estilo para la Gema Dorada teñida */
             .gema-dorada {
                 display: inline-block;
                 background: radial-gradient(circle at 30% 30%, #FFF5A5 0%, #FFD700 50%, #B8860B 100%);
@@ -77,7 +76,7 @@ def mostrar_tablero():
                 </td>
                 <td style="width: 55%;">
                     <span class="label">RECURSOS Y MAREA</span>
-                    <span class="gema-dorada">🔶</span>
+                    <span class="gema-dorada">💎</span>
                     <span class="texto-recurso">{st.session_state.recursos_jefe} Æ</span> 
                     <span style="color:white; font-weight:bold;"> | 🌊 {st.session_state.marea}</span>
                     <br><span style="font-size:10px; color:#666;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
@@ -86,7 +85,7 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. CARTA ACTIVA (RECIÉN REVELADA) ---
+    # --- 3. CARTA ACTIVA ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
         ruta = RUTA_BASE + c['img']
@@ -97,7 +96,7 @@ def mostrar_tablero():
     
     st.divider()
 
-    # --- 4. MESA (CARRIL DE AMENAZAS) ---
+    # --- 4. MESA (CARRIL) ---
     if st.session_state.mesa:
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
