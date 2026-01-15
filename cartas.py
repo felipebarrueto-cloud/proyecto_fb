@@ -4,8 +4,8 @@ def obtener_mazo_oficial():
         {"nombre": "Crushing Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 9, "img": "1.png","presa": True},
         {"nombre": "Grappling Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "3.png","sube_marea": True,"presa": True},
         {"nombre": "Shield Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 6, "img": "8.png"},
-        {"nombre": "Slippery Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "10.png","sube_marea": True},
-        {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png"},
+        {"nombre": "Slippery Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "10.png","sube_marea": True,"no_hace_danio": True, "ambar_generado": 1},
+        {"nombre": "Tenacious Arm", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "12.png","no_hace_danio": True, "ambar_generado": 1},
         {"nombre": "Lashing Tentacle", "cant": 2, "tipo": "CRIATURA", "defensa": 3, "img": "5.png","presa": True},
 
         {"nombre": "Beast of Dark Legend", "cant": 1, "tipo": "ACCION", "img": "13.png","sube_marea": True,"habilidad": "archivar",
