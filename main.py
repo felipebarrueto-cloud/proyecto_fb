@@ -2,10 +2,8 @@ import streamlit as st
 from cartas import obtener_mazo_oficial
 import estado, tablero, descarte
 
-# 1. Configuración de página - DEBE SER LA PRIMERA LÍNEA DE STREAMLIT
-st.set_page_config(page_title="Keyraken Adventure", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Keyraken Adventure", layout="wide")
 
-# 2. Inicialización de la sesión
 if 'juego_iniciado' not in st.session_state:
     st.session_state.juego_iniciado = False
 
@@ -23,10 +21,13 @@ if not st.session_state.juego_iniciado:
         st.session_state.recursos_jefe = 0
         st.session_state.marea = "Baja"
         st.session_state.avances_jefe = 0
+        # ESTA VARIABLE FALTABA:
+        st.session_state.armadura_actual = 6 
+        
         st.session_state.juego_iniciado = True
         st.rerun()
 else:
-    # Navegación sencilla para móvil
+    # Usamos selectbox para evitar que el menú sidebar desaparezca en móvil
     pagina = st.selectbox("Sección:", ["Tablero", "Estado", "Descarte"])
     
     if pagina == "Tablero":
