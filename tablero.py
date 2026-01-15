@@ -52,20 +52,18 @@ def mostrar_tablero():
             nueva_c = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva_c
             
-            # --- NUEVA LÓGICA: CHEQUEAR PRESA EN REVELADA Y EN MESA ---
-            # Comprobamos si hay alguna criatura en la mesa que sea 'presa'
-            presa_en_mesa = any(carta.get('presa') == True for carta in st.session_state.mesa)
+            # --- LÓGICA DE PRESA Y ÁMBAR CONDICIONAL ---
+            # Comprobamos Presa en las cartas ya en mesa y en la nueva revelada
+            presa_en_mesa = any(carta.get('presa') == True for carta in st.session_state.mesa if carta['tipo'] == "CRIATURA")
             presa_revelada = nueva_c.get('presa') == True
 
             if presa_revelada or presa_en_mesa:
-                # El jefe final ataca y NO genera el ámbar base
-                st.error("🐙 ¡HABILIDAD PRESA ACTIVA! El Jefe ataca con 3 de daño base (No genera Æmbar).")
-                if presa_en_mesa and not presa_revelada:
-                    st.info("💡 El ataque fue activado por una criatura en la mesa.")
+                # El jefe ataca (El daño base 3 se activará en la tabla)
+                st.error("🐙 ¡PRESA DETECTADA! El Jefe infligirá su daño base de 3.")
             else:
-                # El jefe no ataca, genera 1 ambar base
+                # El jefe no ataca con el base, genera 1 ambar
                 st.session_state.recursos_jefe += 1
-                st.toast("💎 Habilidad Base: El Jefe genera 1 Æmbar.")
+                st.toast("💎 Sin Presa: El Jefe genera 1 Æmbar en lugar de atacar.")
 
             # --- PASO D: PROCESAR HABILIDADES ADICIONALES ---
             hab = nueva_c.get("habilidad")
@@ -92,16 +90,32 @@ def mostrar_tablero():
             # Subir marea estándar de la carta
             if nueva_c.get('sube_marea') == True and not marea_ya_cambio:
                 st.session_state.marea = "Alta"
-                st.toast("🌊 Marea A")lta
+                st.toast("🌊 Marea Alta")
             
             # Ámbar de regalo extra de la carta
             st.session_state.recursos_jefe += nueva_c.get('ambar_regalo', 0)
             
             st.rerun()
 
-    # --- 2. TABLA DE RESUMEN ---
+    # --- 2. CÁLCULO DE PODER Y TABLA DE RESUMEN ---
+    # Revisamos si hay Presa para aplicar el daño base de 3
+    presa_en_mesa = any(carta.get('presa') == True for carta in st.session_state.mesa if carta['tipo'] == "CRIATURA")
+    presa_activa = False
+    if st.session_state.carta_activa and st.session_state.carta_activa.get('presa') == True:
+        presa_activa = True
+
+    # Daño base condicional
+    daño_base = 3 if (presa_en_mesa or presa_activa) else 0
+    
+    # Daño de criaturas en mesa
     daño_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo'] == "CRIATURA")
-    poder_total = 3 + daño_mesa
+    
+    # Daño de la criatura activa (si es criatura)
+    daño_activa = 0
+    if st.session_state.carta_activa and st.session_state.carta_activa['tipo'] == "CRIATURA":
+        daño_activa = st.session_state.carta_activa.get('defensa', 0)
+
+    poder_total = daño_base + daño_mesa + daño_activa
 
     st.markdown(f"""
         <table class="compact-table">
@@ -109,6 +123,7 @@ def mostrar_tablero():
                 <td style="width: 45%;">
                     <span class="label">💥 PODER TOTAL</span>
                     <span class="val-red">{poder_total}</span>
+                    <br><span style="font-size:9px; color:#888;">{'(Base 3 + Mesa)' if daño_base > 0 else '(Solo Mesa - Sin Presa)'}</span>
                 </td>
                 <td style="width: 55%;">
                     <span class="label">RECURSOS Y MAREA</span>
@@ -121,8 +136,28 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # El resto del renderizado de imágenes y mesa sigue igual...
+    # --- 3. RENDERIZADO DE CARTA ACTIVA Y MESA ---
     if st.session_state.carta_activa:
         c = st.session_state.carta_activa
-        if os.path.exists(RUTA_BASE + c['img']):
-            st.image(RUTA_BASE + c['img'], use_container_width=True)
+        ruta_activa = RUTA_BASE + c['img']
+        if os.path.exists(ruta_activa):
+            st.image(ruta_activa, use_container_width=True)
+
+    st.divider()
+
+    if st.session_state.mesa:
+        cols = st.columns(2)
+        for i, carta in enumerate(st.session_state.mesa):
+            with cols[i % 2]:
+                with st.container(border=True):
+                    ruta_m = RUTA_BASE + carta['img']
+                    if os.path.exists(ruta_m):
+                        st.image(ruta_m, use_container_width=True)
+                    
+                    if carta['tipo'] == "CRIATURA":
+                        if st.button(f"💥 {carta['def_actual']}", key=f"btn_{i}", use_container_width=True):
+                            carta['def_actual'] -= 1
+                            if carta['def_actual'] <= 0:
+                                st.session_state.vida_jefe -= 3
+                                st.session_state.descarte.append(st.session_state.mesa.pop(i))
+                            st.rerun()
