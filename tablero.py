@@ -89,7 +89,7 @@ def mostrar_tablero():
                 <td style="width: 55%;">
                     <span class="label">RECURSOS Y MAREA</span>
                     <span class="gema">💎</span> 
-                    <span class="texto-recurso">{st.session_state.recursos_jefe} Æ</span>
+                    <span class="texto-blanco">{st.session_state.recursos_jefe} Æ</span>
                     <span style="color:white; font-weight:bold;"> | 🌊 {st.session_state.marea}</span>
                     <br><span style="font-size:10px; color:#666;">Avances: <b>{st.session_state.avances_jefe}/4</b></span>
                 </td>
