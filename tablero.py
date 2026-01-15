@@ -5,11 +5,14 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def procesar_habilidades_carta(carta, marea_ya_cambio):
+    """Procesa ámbar, marea y habilidades de cartas (archivadas o reveladas)"""
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
+    
     if carta.get('sube_marea') == True and not marea_ya_cambio:
         st.session_state.marea = "Alta"
         st.toast(f"🌊 Marea Alta: {carta['nombre']}")
         marea_ya_cambio = True
+        
     if carta.get("habilidad") == "archivar":
         valor = carta.get("valor", 0)
         for _ in range(valor):
@@ -36,15 +39,27 @@ def mostrar_tablero():
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
 
-            /* 3. BOTONES MINI DENTRO DE TABLA (Eliminar estilo por defecto de Streamlit) */
-            .gestion-btn {
-                background: none !important;
-                border: 1px solid #444 !important;
+            /* 3. BOTONES MANUALES (Gris oscuro y forzar fila en móvil) */
+            /* Forzamos al contenedor de las columnas a no romperse en móvil */
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_"]) {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 10px !important;
+            }
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_"]) div[data-testid="column"] {
+                width: 50% !important;
+                flex: 1 1 50% !important;
+                min-width: 50% !important;
+            }
+
+            /* Estilo para que no sean rojos y se integren con la tabla */
+            button[key="btn_sub"], button[key="btn_add"] {
+                background-color: #1a1c23 !important;
                 color: #ffffff !important;
-                padding: 2px 10px !important;
-                font-size: 12px !important;
-                border-radius: 4px !important;
-                cursor: pointer;
+                border: 1px solid #444 !important;
+                font-size: 13px !important;
+                height: 2.8em !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -86,7 +101,7 @@ def mostrar_tablero():
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
             st.rerun()
 
-    # --- 2. CÁLCULO Y TABLA CON BOTONES INTEGRADOS ---
+    # --- 2. CÁLCULO Y TABLA ---
     n_archivo = len(st.session_state.get('archivo_jefe', []))
     poder_total = 0
     if st.session_state.carta_activa:
@@ -96,7 +111,6 @@ def mostrar_tablero():
         dmg_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
         poder_total = base + dmg_mesa
 
-    # Render de Tabla Unificada
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -109,14 +123,14 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # Botones de gestión minimalistas debajo de la tabla (pero sin ser rojos)
+    # Botones de gestión manual (Forzados lado a lado y color gris tabla)
     c_m1, c_m2 = st.columns(2)
     with c_m1:
-        if st.button("➖ Æ (Manual)", key="btn_sub", use_container_width=True):
+        if st.button("➖ Æ", key="btn_sub", use_container_width=True):
             st.session_state.recursos_jefe = max(0, st.session_state.recursos_jefe - 1)
             st.rerun()
     with c_m2:
-        if st.button("➕ Æ (Manual)", key="btn_add", use_container_width=True):
+        if st.button("➕ Æ", key="btn_add", use_container_width=True):
             st.session_state.recursos_jefe += 1
             st.rerun()
 
@@ -141,7 +155,7 @@ def mostrar_tablero():
 
     # --- 4. MESA ---
     if st.session_state.mesa:
-        st.subheader("🏟️ Mesa")
+        st.subheader("Criaturas y Artefactos desplegados")
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
@@ -157,3 +171,4 @@ def mostrar_tablero():
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
+                    else: st.caption("💠 ARTEFACTO")
