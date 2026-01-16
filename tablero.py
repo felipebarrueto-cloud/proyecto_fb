@@ -25,66 +25,69 @@ def mostrar_tablero():
     if 'ultimas_desarchivadas' not in st.session_state:
         st.session_state.ultimas_desarchivadas = []
 
-    # --- CSS: BOTONES CUADRADOS FIJOS ---
+    # --- CSS: BOTONES CUADRADOS EN FILA HORIZONTAL ---
     st.markdown("""
         <style>
-            /* Reset General */
+            /* Reset General de Botones */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #333 !important;
             }
 
-            /* BOTONES MANUALES: CUADRADOS FIJOS */
-            /* Definimos 50px de ancho y alto para que no se estiren */
+            /* 1. ESTILO CUADRADO FIJO */
             button[key*="btn_manual"] {
                 width: 50px !important;
                 height: 50px !important;
                 min-width: 50px !important;
                 max-width: 50px !important;
-                padding: 0 !important;
-                border-radius: 8px !important; /* Cuadrado con esquinas levemente suaves */
+                border-radius: 8px !important;
                 font-size: 24px !important;
-                line-height: 50px !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                margin: 0 auto !important; /* Centrado dentro de su columna */
             }
 
-            /* Tabla de Resumen */
+            /* 2. FORZAR FILA HORIZONTAL (FLEXBOX) */
+            /* Este selector busca el contenedor de los botones manuales */
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
+                display: flex !important;
+                flex-direction: row !important; /* Fuerza la fila */
+                flex-wrap: nowrap !important;   /* Evita el salto de línea */
+                justify-content: center !important; /* Centra el grupo */
+                align-items: center !important;
+                gap: 15px !important; /* Espacio entre los dos cuadrados */
+                width: 100% !important;
+            }
+
+            /* Ajuste para que las columnas de Streamlit no ocupen el 100% en móvil */
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) div[data-testid="column"] {
+                width: auto !important;
+                flex: 0 1 auto !important;
+            }
+
+            /* Estilo Tabla Resumen */
             .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
             .compact-table td { border: 1px solid #333; padding: 8px 4px; text-align: center; }
             .label-top { color: #888; font-size: 10px; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 2px; }
             .value-bottom { color: #ffffff; font-size: 18px; font-weight: bold; display: block; }
             .sub-info { color: #666; font-size: 9px; display: block; margin-top: 1px; }
-
-            /* Contenedor de botones manuales para que no se apilen */
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
-                display: flex !important;
-                flex-direction: row !important;
-                justify-content: center !important;
-                gap: 20px !important; /* Espacio entre los dos cuadrados */
-                padding-top: 10px;
-            }
         </style>
     """, unsafe_allow_html=True)
 
     # --- 1. LÓGICA DE REVELADO ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
-        marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
-        marea_ya_cambio = st.session_state.marea != marea_inicial
-
-        rec_rec = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
-        st.session_state.recursos_jefe += rec_rec
+        
+        recursos_rec = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
+        st.session_state.recursos_jefe += recursos_rec
 
         if st.session_state.archivo_jefe:
             cartas_a_des = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
             for c in cartas_a_des:
-                marea_ya_cambio = procesar_habilidades_carta(c, marea_ya_cambio)
+                procesar_habilidades_carta(c, False)
                 if c['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                     c['def_actual'] = c.get('defensa', 0)
                     st.session_state.mesa.append(c)
@@ -101,10 +104,7 @@ def mostrar_tablero():
         if st.session_state.mazo:
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
-            marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
-            hay_p = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
-            if not (nueva.get('presa') or hay_p):
-                st.session_state.recursos_jefe += 1
+            procesar_habilidades_carta(nueva, False)
             st.rerun()
 
     # --- 2. TABLA RESUMEN ---
@@ -123,12 +123,12 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. GESTIÓN MANUAL (Botones Cuadrados) ---
-    # Usamos columnas para posicionar, pero el CSS controlará que sean cuadrados
-    c_e1, c_m1, c_m2, c_e2 = st.columns([1, 1, 1, 1])
-    with c_m1:
+    # --- 3. GESTIÓN MANUAL (Fila de Botones Cuadrados) ---
+    # Usamos dos columnas pequeñas para colocar los botones lado a lado
+    col_izq, col_der = st.columns(2)
+    with col_izq:
         st.button("➖", key="btn_manual_sub", on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
-    with c_m2:
+    with col_der:
         st.button("➕", key="btn_manual_add", on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
 
     st.divider()
