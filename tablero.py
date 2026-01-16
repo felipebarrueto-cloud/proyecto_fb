@@ -30,6 +30,7 @@ def mostrar_tablero():
     # --- FORMATEO GLOBAL DE BOTONES Y TABLA (CSS) ---
     st.markdown("""
         <style>
+            /* 1. TODOS los botones serán GRISES OSCUROS por defecto */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
@@ -37,27 +38,17 @@ def mostrar_tablero():
                 border-radius: 8px !important;
                 height: 2.8em !important;
             }
-            div.stButton:first-of-type > button {
+
+            /* 2. SOLO el botón que contenga el texto "REVELAR" será ROJO */
+            /* Esto evita que "INICIAR ENCUENTRO" se pinte de rojo por error */
+            div.stButton > button:has(div:contains("REVELAR")) {
                 background-color: #ff4b4b !important;
+                border: none !important;
                 font-weight: bold !important;
                 height: 3.5em !important;
             }
-            .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; overflow: hidden; }
-            .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
-            .label { color: #888; font-size: 10px; display: block; }
-            .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
-
-            [data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 8px !important;
-            }
-            [data-testid="column"] {
-                width: 50% !important;
-                flex: 1 1 50% !important;
-                min-width: 50% !important;
-            }
+            
+            /* ... resto de tus estilos de tabla y columnas ... */
         </style>
     """, unsafe_allow_html=True)
 
