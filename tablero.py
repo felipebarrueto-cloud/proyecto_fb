@@ -26,7 +26,7 @@ def mostrar_tablero():
     if 'ultimas_desarchivadas' not in st.session_state:
         st.session_state.ultimas_desarchivadas = []
 
-    # --- CSS ACTUALIZADO ---
+    # --- CSS ---
     st.markdown("""
         <style>
             div.stButton > button {
@@ -44,7 +44,7 @@ def mostrar_tablero():
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. LÓGICA DE REVELADO (Sin cambios significativos) ---
+    # --- 1. LÓGICA DE REVELADO ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
         marea.gestionar_avance_keyraken()
@@ -102,18 +102,32 @@ def mostrar_tablero():
 
     st.divider()
 
-    # --- 3. MESA CON BOTÓN PARA ARTEFACTOS ---
-    # --- MESA DE JUEGO ---
+    # --- 3. ÁREA DE REVELADO (LO QUE FALTABA) ---
+    ultimas = st.session_state.get('ultimas_desarchivadas', [])
+    if ultimas:
+        col_revelada, col_archivo = st.columns(2)
+        with col_revelada:
+            if st.session_state.carta_activa:
+                st.caption("🆕 REVELADA")
+                st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+        with col_archivo:
+            st.caption("📤 DESARCHIVADA/S")
+            for c_arc in ultimas:
+                st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
+    else:
+        if st.session_state.carta_activa:
+            st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+
+    st.divider()
+
+    # --- 4. MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.markdown("<p style='font-size: 16px; font-weight: bold; margin-bottom: 5px;'>Criaturas y Artefactos desplegados</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 14px; color: #888; font-weight: bold; margin-bottom: 5px;'>Criaturas y Artefactos desplegados</p>", unsafe_allow_html=True)
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
-                    # Usar use_container_width asegura que aproveche el 100% de su columna (50% de la pantalla)
                     st.image(RUTA_BASE + carta['img'], use_container_width=True)
-                    
-                    # Lógica para Criaturas
                     if carta['tipo'] == "CRIATURA":
                         st.write(f"❤️ {carta['def_actual']}")
                         if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
@@ -122,8 +136,6 @@ def mostrar_tablero():
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
-                    
-                    # NUEVA Lógica para Artefactos
                     elif carta['tipo'] == "ARTEFACTO":
                         st.caption("🏺 Artefacto")
                         if st.button(f"Eliminar {i}", key=f"del_art_{i}", use_container_width=True):
