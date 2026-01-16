@@ -103,12 +103,14 @@ def mostrar_tablero():
     st.divider()
 
     # --- 3. MESA CON BOTÓN PARA ARTEFACTOS ---
+    # --- MESA DE JUEGO ---
     if st.session_state.mesa:
-        st.subheader("Criaturas y Artefactos")
+        st.markdown("<p style='font-size: 16px; font-weight: bold; margin-bottom: 5px;'>Criaturas y Artefactos desplegados</p>", unsafe_allow_html=True)
         cols = st.columns(2)
         for i, carta in enumerate(st.session_state.mesa):
             with cols[i % 2]:
                 with st.container(border=True):
+                    # Usar use_container_width asegura que aproveche el 100% de su columna (50% de la pantalla)
                     st.image(RUTA_BASE + carta['img'], use_container_width=True)
                     
                     # Lógica para Criaturas
