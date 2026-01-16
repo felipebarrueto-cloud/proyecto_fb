@@ -5,14 +5,12 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def procesar_habilidades_carta(carta, marea_ya_cambio):
-    """Procesa ámbar, marea y habilidades de cartas (archivadas o reveladas)"""
+    """Procesa ámbar, marea y habilidades de cartas"""
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
-    
     if carta.get('sube_marea') == True and not marea_ya_cambio:
         st.session_state.marea = "Alta"
         st.toast(f"🌊 Marea Alta: {carta['nombre']}")
         marea_ya_cambio = True
-        
     if carta.get("habilidad") == "archivar":
         valor = carta.get("valor", 0)
         for _ in range(valor):
@@ -22,58 +20,64 @@ def procesar_habilidades_carta(carta, marea_ya_cambio):
     return marea_ya_cambio
 
 def mostrar_tablero():
-    # --- CSS ACTUALIZADO (ESTILO BLINDADO PARA MÓVIL Y GRIS) ---
+    # --- FORMATEO GLOBAL DE BOTONES Y TABLA (CSS) ---
     st.markdown("""
         <style>
-            div.stButton > button:first-of-type { 
-                background-color: #ff4b4b !important; 
-                color: white !important; 
-                font-weight: bold; 
-                border-radius: 10px; 
+            /* 1. RESET GENERAL: Todos los botones serán GRISES OSCUROS por defecto */
+            div.stButton > button {
+                background-color: #1a1c23 !important;
+                color: #ffffff !important;
+                border: 1px solid #444 !important;
+                border-radius: 8px !important;
+                height: 2.8em !important;
+                transition: all 0.2s ease;
             }
-            .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; }
-            .compact-table td { border: 1px solid #333; padding: 4px; text-align: center; }
+
+            /* 2. EXCEPCIÓN: El primer botón (REVELAR SIGUIENTE CARTA) será ROJO */
+            div.stButton:first-of-type > button {
+                background-color: #ff4b4b !important;
+                border: none !important;
+                font-weight: bold !important;
+                height: 3.5em !important;
+                text-transform: uppercase;
+            }
+
+            /* 3. TABLA DE RESUMEN */
+            .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; overflow: hidden; }
+            .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
 
-            /* Forzar botones manuales lado a lado y color gris */
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
+            /* 4. FORZAR FILAS EN MÓVIL (Impide que los botones de gestión se apilen) */
+            [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
+                gap: 8px !important;
             }
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) div[data-testid="column"] {
+            [data-testid="column"] {
                 width: 50% !important;
                 flex: 1 1 50% !important;
                 min-width: 50% !important;
             }
-            button[key*="btn_manual"] {
-                background-color: #1a1c23 !important;
-                color: #ffffff !important;
-                border: 1px solid #444 !important;
-                height: 2.8em !important;
-            }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR (Lógica completa con Archivo) ---
+    # --- 1. BOTÓN PRINCIPAL REVELAR ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
-        st.session_state.ultimas_desarchivadas = [] # Limpiar visualización previa
+        st.session_state.ultimas_desarchivadas = []
         marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
 
-        # A. GENERACIÓN POR RECOLECTORES (Criaturas en mesa)
-        recursos_ganados = 0
-        for carta_mesa in st.session_state.mesa:
-            if carta_mesa.get('no_hace_danio') and carta_mesa.get('ambar_generado'):
-                recursos_ganados += carta_mesa['ambar_generado']
-        
+        # Generación Æmbar Recolectores
+        recursos_ganados = sum(c['ambar_generado'] for c in st.session_state.mesa 
+                              if c.get('no_hace_danio') and c.get('ambar_generado'))
         if recursos_ganados > 0:
             st.session_state.recursos_jefe += recursos_ganados
-            st.toast(f"✨ Recolectores generaron {recursos_ganados} Æ.")
+            st.toast(f"✨ Recolectores: +{recursos_ganados} Æ.")
 
-        # B. PROCESAR ARCHIVO (Vaciado inmediato y captura visual)
+        # Desarchivar
         if st.session_state.get('archivo_jefe'):
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
@@ -84,10 +88,9 @@ def mostrar_tablero():
                     st.session_state.mesa.append(c_arc)
                 else:
                     st.session_state.descarte.append(c_arc)
-            # Guardamos para mostrar visualmente este turno
             st.session_state.ultimas_desarchivadas = cartas_a_desarchivar
 
-        # C. MOVER CARTA ACTIVA ANTERIOR A LA MESA
+        # Actualizar mesa y revelar nueva
         if st.session_state.carta_activa:
             c_v = st.session_state.carta_activa
             if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -96,26 +99,22 @@ def mostrar_tablero():
             else:
                 st.session_state.descarte.append(c_v)
 
-        # D. REVELAR NUEVA CARTA Y REGLA DE "SIN PRESA"
         if st.session_state.mazo:
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
             
-            hay_presa_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
-            if not (nueva.get('presa') or hay_presa_mesa):
+            # Sin Presa: +1 Æ
+            hay_presa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
+            if not (nueva.get('presa') or hay_presa):
                 st.session_state.recursos_jefe += 1
-                st.toast("💎 Sin Presa: +1 Æmbar pasivo.")
-            
             st.rerun()
 
-    # --- 2. TABLA DE RESUMEN ---
-    n_archivo = len(st.session_state.get('archivo_jefe', []))
-    dmg_mesa = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
+    # --- 2. TABLA RESUMEN ---
+    poder_total = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
     p_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
     p_act = st.session_state.carta_activa.get('presa') if st.session_state.carta_activa else False
-    base = 3 if (p_mesa or p_act) else 0
-    poder_total = base + dmg_mesa
+    if p_mesa or p_act: poder_total += 3
 
     st.markdown(f"""
         <table class="compact-table">
@@ -124,42 +123,40 @@ def mostrar_tablero():
                 <td style="width: 40%;"><span class="label">💎 RECURSOS</span>
                     <span class="val-white" style="font-size:16px;">{st.session_state.recursos_jefe} Æ | 🌊 {st.session_state.marea}</span>
                     <br><span style="font-size:10px; color:#888;">Avances: {st.session_state.avances_jefe}/4</span></td>
-                <td style="width: 30%;"><span class="label">📦 ARCHIVO</span><span class="val-white">{n_archivo}</span></td>
+                <td style="width: 30%;"><span class="label">📦 ARCHIVO</span><span class="val-white">{len(st.session_state.archivo_jefe)}</span></td>
             </tr>
         </table>
     """, unsafe_allow_html=True)
 
-    # Botones manuales
-    c_m1, c_m2 = st.columns(2)
-    with c_m1:
-        st.button("➖ Æ", key="btn_manual_sub", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
-    with c_m2:
-        st.button("➕ Æ", key="btn_manual_add", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
+    # --- 3. GESTIÓN MANUAL (Botones Grises alineados) ---
+    col_izq, col_der = st.columns(2)
+    with col_izq:
+        if st.button("➖ Æ", use_container_width=True):
+            st.session_state.recursos_jefe = max(0, st.session_state.recursos_jefe - 1)
+            st.rerun()
+    with col_der:
+        if st.button("➕ Æ", use_container_width=True):
+            st.session_state.recursos_jefe += 1
+            st.rerun()
 
     st.divider()
 
-    # --- 3. ÁREA DE REVELADO (Doble Columna para Archivo) ---
+    # --- 4. ÁREA DE REVELADO (Doble columna si hay archivo) ---
     ultimas = st.session_state.get('ultimas_desarchivadas', [])
-    
     if ultimas:
-        col_revelada, col_archivo = st.columns(2)
-        with col_revelada:
+        c1, c2 = st.columns(2)
+        with c1:
             if st.session_state.carta_activa:
                 st.caption("🆕 REVELADA")
                 st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
-        with col_archivo:
-            st.caption("📤 DESARCHIVADA/S")
+        with c2:
+            st.caption("📤 ARCHIVO")
             for c_arc in ultimas:
                 st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
-    else:
-        # Si no hay cartas desarchivadas, mostramos la activa normal
-        if st.session_state.carta_activa:
-            st.caption("🆕 REVELADA (Agotada)")
-            st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+    elif st.session_state.carta_activa:
+        st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
 
-    st.divider()
-
-    # --- 4. MESA DE JUEGO ---
+    # --- 5. MESA (Botones Atacar Grises) ---
     if st.session_state.mesa:
         st.subheader("Criaturas Desplegadas")
         cols = st.columns(2)
@@ -177,5 +174,3 @@ def mostrar_tablero():
                                 st.session_state.vida_jefe -= 3
                                 st.session_state.descarte.append(st.session_state.mesa.pop(i))
                             st.rerun()
-                    else:
-                        st.caption("💠 ARTEFACTO")
