@@ -5,50 +5,48 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def procesar_habilidades_carta(carta, marea_ya_cambio):
-    """Procesa ámbar, marea y habilidades de cartas"""
+    # Asegurar que archivo_jefe existe antes de usarlo
+    if 'archivo_jefe' not in st.session_state:
+        st.session_state.archivo_jefe = []
+        
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
     if carta.get('sube_marea') == True and not marea_ya_cambio:
         st.session_state.marea = "Alta"
-        st.toast(f"🌊 Marea Alta: {carta['nombre']}")
         marea_ya_cambio = True
     if carta.get("habilidad") == "archivar":
         valor = carta.get("valor", 0)
         for _ in range(valor):
             if st.session_state.mazo:
                 st.session_state.archivo_jefe.append(st.session_state.mazo.pop(0))
-        st.toast(f"📦 Archivadas {valor} cartas.")
     return marea_ya_cambio
 
 def mostrar_tablero():
+    # --- VERIFICACIÓN DE SEGURIDAD (Evita el AttributeError) ---
+    if 'archivo_jefe' not in st.session_state:
+        st.session_state.archivo_jefe = []
+    if 'ultimas_desarchivadas' not in st.session_state:
+        st.session_state.ultimas_desarchivadas = []
+
     # --- FORMATEO GLOBAL DE BOTONES Y TABLA (CSS) ---
     st.markdown("""
         <style>
-            /* 1. RESET GENERAL: Todos los botones serán GRISES OSCUROS por defecto */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #444 !important;
                 border-radius: 8px !important;
                 height: 2.8em !important;
-                transition: all 0.2s ease;
             }
-
-            /* 2. EXCEPCIÓN: El primer botón (REVELAR SIGUIENTE CARTA) será ROJO */
             div.stButton:first-of-type > button {
                 background-color: #ff4b4b !important;
-                border: none !important;
                 font-weight: bold !important;
                 height: 3.5em !important;
-                text-transform: uppercase;
             }
-
-            /* 3. TABLA DE RESUMEN */
             .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; overflow: hidden; }
             .compact-table td { border: 1px solid #333; padding: 6px; text-align: center; }
             .label { color: #888; font-size: 10px; display: block; }
             .val-white { color: #ffffff; font-size: 18px; font-weight: bold; }
 
-            /* 4. FORZAR FILAS EN MÓVIL (Impide que los botones de gestión se apilen) */
             [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: row !important;
@@ -70,15 +68,12 @@ def mostrar_tablero():
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
 
-        # Generación Æmbar Recolectores
         recursos_ganados = sum(c['ambar_generado'] for c in st.session_state.mesa 
                               if c.get('no_hace_danio') and c.get('ambar_generado'))
         if recursos_ganados > 0:
             st.session_state.recursos_jefe += recursos_ganados
-            st.toast(f"✨ Recolectores: +{recursos_ganados} Æ.")
 
-        # Desarchivar
-        if st.session_state.get('archivo_jefe'):
+        if st.session_state.archivo_jefe:
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
             for c_arc in cartas_a_desarchivar:
@@ -90,7 +85,6 @@ def mostrar_tablero():
                     st.session_state.descarte.append(c_arc)
             st.session_state.ultimas_desarchivadas = cartas_a_desarchivar
 
-        # Actualizar mesa y revelar nueva
         if st.session_state.carta_activa:
             c_v = st.session_state.carta_activa
             if c_v['tipo'] in ["CRIATURA", "ARTEFACTO"]:
@@ -104,7 +98,6 @@ def mostrar_tablero():
             st.session_state.carta_activa = nueva
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
             
-            # Sin Presa: +1 Æ
             hay_presa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
             if not (nueva.get('presa') or hay_presa):
                 st.session_state.recursos_jefe += 1
@@ -128,7 +121,7 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. GESTIÓN MANUAL (Botones Grises alineados) ---
+    # --- 3. GESTIÓN MANUAL ---
     col_izq, col_der = st.columns(2)
     with col_izq:
         if st.button("➖ Æ", use_container_width=True):
@@ -141,36 +134,15 @@ def mostrar_tablero():
 
     st.divider()
 
-    # --- 4. ÁREA DE REVELADO (Doble columna si hay archivo) ---
-    ultimas = st.session_state.get('ultimas_desarchivadas', [])
+    # --- 4. ÁREA DE REVELADO ---
+    ultimas = st.session_state.ultimas_desarchivadas
     if ultimas:
         c1, c2 = st.columns(2)
         with c1:
             if st.session_state.carta_activa:
-                st.caption("🆕 REVELADA")
                 st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
         with c2:
-            st.caption("📤 ARCHIVO")
             for c_arc in ultimas:
                 st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
     elif st.session_state.carta_activa:
         st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
-
-    # --- 5. MESA (Botones Atacar Grises) ---
-    if st.session_state.mesa:
-        st.subheader("Criaturas Desplegadas")
-        cols = st.columns(2)
-        for i, carta in enumerate(st.session_state.mesa):
-            with cols[i % 2]:
-                with st.container(border=True):
-                    st.image(RUTA_BASE + carta['img'], use_container_width=True)
-                    if carta['tipo'] == "CRIATURA":
-                        if carta.get('no_hace_danio'):
-                            st.markdown("<span style='color:white; font-size:11px;'>💎 Cosechar</span>", unsafe_allow_html=True)
-                        st.write(f"❤️ {carta['def_actual']}")
-                        if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
-                            carta['def_actual'] -= 1
-                            if carta['def_actual'] <= 0:
-                                st.session_state.vida_jefe -= 3
-                                st.session_state.descarte.append(st.session_state.mesa.pop(i))
-                            st.rerun()
