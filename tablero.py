@@ -22,45 +22,51 @@ def mostrar_tablero():
     if 'ultimas_desarchivadas' not in st.session_state:
         st.session_state.ultimas_desarchivadas = []
 
-    # --- CSS: BOTONES INVISIBLES Y TABLA UNIFICADA ---
+    # --- CSS ACTUALIZADO ---
     st.markdown("""
         <style>
-            /* Reset de botones de Streamlit para que parezcan celdas */
+            /* Reset de botones: Gris oscuro */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #333 !important;
-                border-radius: 4px !important;
-                height: 2.5em !important;
-                width: 100% !important;
+                border-radius: 8px !important;
+                height: 2.8em !important;
             }
             
-            /* Tabla Resumen */
+            /* Tabla Resumen: Título sobre Valor */
             .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
-            .compact-table td { border: 1px solid #333; padding: 6px 4px; text-align: center; }
+            .compact-table td { border: 1px solid #333; padding: 8px 4px; text-align: center; }
             .label-top { color: #888; font-size: 10px; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 2px; }
             .value-bottom { color: #ffffff; font-size: 18px; font-weight: bold; display: block; }
             .sub-info { color: #666; font-size: 9px; display: block; margin-top: 1px; }
 
-            /* Quitar el margen excesivo de las columnas de los botones */
-            [data-testid="column"] { padding: 0px 2px !important; }
+            /* Forzar que las columnas no se apilen en móvil para los botones manuales */
+            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                justify-content: center !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
     # --- 1. BOTÓN REVELAR ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
+        marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
-        
-        # Generación de Æmbar
+        marea_ya_cambio = st.session_state.marea != marea_inicial
+
         recursos_ganados = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
-        st.session_state.recursos_jefe += recursos_ganados
+        if recursos_ganados > 0:
+            st.session_state.recursos_jefe += recursos_ganados
 
         if st.session_state.archivo_jefe:
             cartas_a_desarchivar = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
             for c_arc in cartas_a_desarchivar:
-                procesar_habilidades_carta(c_arc, False)
+                marea_ya_cambio = procesar_habilidades_carta(c_arc, marea_ya_cambio)
                 if c_arc['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                     c_arc['def_actual'] = c_arc.get('defensa', 0)
                     st.session_state.mesa.append(c_arc)
@@ -79,17 +85,18 @@ def mostrar_tablero():
         if st.session_state.mazo:
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
-            procesar_habilidades_carta(nueva, False)
+            marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
+            hay_presa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
+            if not (nueva.get('presa') or hay_presa):
+                st.session_state.recursos_jefe += 1
             st.rerun()
 
-    # --- 2. CÁLCULO DE DATOS ---
+    # --- 2. TABLA RESUMEN ---
     poder_total = sum(c.get('defensa', 0) for c in st.session_state.mesa if c['tipo']=="CRIATURA" and not c.get('no_hace_danio'))
     p_mesa = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
     p_act = st.session_state.carta_activa.get('presa') if st.session_state.carta_activa else False
     if p_mesa or p_act: poder_total += 3
 
-    # --- 3. TABLA DE RESUMEN CON FILA DE BOTONES INTEGRADA ---
-    # La tabla ahora tiene dos filas (tr). La segunda fila contiene los botones manuales.
     st.markdown(f"""
         <table class="compact-table">
             <tr>
@@ -110,25 +117,45 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # Aquí colocamos los botones justo debajo de la celda de recursos usando columnas de Streamlit
-    # que ahora se verán integradas visualmente.
-    c_esp1, c_btn1, c_btn2, c_esp2 = st.columns([1, 1, 1, 1])
-    with c_btn1:
+    # --- 3. GESTIÓN MANUAL (Ocupando 25% cada uno, centrados) ---
+    # Creamos 4 columnas: [Espacio (25%), Menos (25%), Mas (25%), Espacio (25%)]
+    m_col1, m_col2, m_col3, m_col4 = st.columns([1, 1, 1, 1])
+    
+    with m_col2: # Columna 2 (Restar)
         st.button("➖ Æ", key="btn_manual_sub", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
-    with c_btn2:
+    
+    with m_col3: # Columna 3 (Sumar)
         st.button("➕ Æ", key="btn_manual_add", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
 
     st.divider()
 
-    # --- 4. ÁREA DE REVELADO Y MESA ---
+    # --- 4. ÁREA DE REVELADO Y MESA (Se mantiene igual) ---
     ultimas = st.session_state.ultimas_desarchivadas
     if ultimas:
         c1, c2 = st.columns(2)
         with c1:
             if st.session_state.carta_activa:
+                st.caption("🆕 REVELADA")
                 st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
         with c2:
+            st.caption("📤 ARCHIVO")
             for c_arc in ultimas:
                 st.image(RUTA_BASE + c_arc['img'], use_container_width=True)
     elif st.session_state.carta_activa:
         st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+
+    if st.session_state.mesa:
+        st.subheader("Mesa")
+        cols = st.columns(2)
+        for i, carta in enumerate(st.session_state.mesa):
+            with cols[i % 2]:
+                with st.container(border=True):
+                    st.image(RUTA_BASE + carta['img'], use_container_width=True)
+                    if carta['tipo'] == "CRIATURA":
+                        st.write(f"❤️ {carta['def_actual']}")
+                        if st.button(f"Atacar {i}", key=f"atq_{i}", use_container_width=True):
+                            carta['def_actual'] -= 1
+                            if carta['def_actual'] <= 0:
+                                st.session_state.vida_jefe -= 3
+                                st.session_state.descarte.append(st.session_state.mesa.pop(i))
+                            st.rerun()
