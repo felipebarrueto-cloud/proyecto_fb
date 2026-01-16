@@ -8,13 +8,10 @@ def procesar_habilidades_carta(carta, marea_ya_cambio):
     """Procesa ámbar, marea y habilidades de cartas"""
     if 'archivo_jefe' not in st.session_state:
         st.session_state.archivo_jefe = []
-    
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
-    
     if carta.get('sube_marea') == True and not marea_ya_cambio:
         st.session_state.marea = "Alta"
         marea_ya_cambio = True
-        
     if carta.get("habilidad") == "archivar":
         valor = carta.get("valor", 0)
         for _ in range(valor):
@@ -28,26 +25,31 @@ def mostrar_tablero():
     if 'ultimas_desarchivadas' not in st.session_state:
         st.session_state.ultimas_desarchivadas = []
 
-    # --- CSS: BOTONES MANUALES RECTANGULARES / CIRCULARES ---
+    # --- CSS: BOTONES CUADRADOS FIJOS ---
     st.markdown("""
         <style>
-            /* Reset General de Botones */
+            /* Reset General */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #333 !important;
-                transition: all 0.2s ease;
             }
 
-            /* Configuración específica para botones de Ámbar (+ y -) */
-            /* Los hacemos rectangulares compactos */
+            /* BOTONES MANUALES: CUADRADOS FIJOS */
+            /* Definimos 50px de ancho y alto para que no se estiren */
             button[key*="btn_manual"] {
-                height: 45px !important;
-                width: 100% !important;
-                border-radius: 12px !important; /* Esquinas suaves */
-                font-size: 20px !important;
-                font-weight: bold !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+                width: 50px !important;
+                height: 50px !important;
+                min-width: 50px !important;
+                max-width: 50px !important;
+                padding: 0 !important;
+                border-radius: 8px !important; /* Cuadrado con esquinas levemente suaves */
+                font-size: 24px !important;
+                line-height: 50px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: 0 auto !important; /* Centrado dentro de su columna */
             }
 
             /* Tabla de Resumen */
@@ -57,32 +59,27 @@ def mostrar_tablero():
             .value-bottom { color: #ffffff; font-size: 18px; font-weight: bold; display: block; }
             .sub-info { color: #666; font-size: 9px; display: block; margin-top: 1px; }
 
-            /* Forzar fila horizontal en móviles */
+            /* Contenedor de botones manuales para que no se apilen */
             [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
                 display: flex !important;
                 flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 10px !important;
                 justify-content: center !important;
-                padding: 0 15% !important; /* Les da aire a los lados para que ocupen el centro */
+                gap: 20px !important; /* Espacio entre los dos cuadrados */
+                padding-top: 10px;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 1. BOTÓN REVELAR ---
+    # --- 1. LÓGICA DE REVELADO ---
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
         marea_inicial = st.session_state.marea
         marea.gestionar_avance_keyraken()
         marea_ya_cambio = st.session_state.marea != marea_inicial
 
-        # Generación por Recolectores
-        recursos_rec = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
-        if recursos_rec > 0:
-            st.session_state.recursos_jefe += recursos_rec
-            st.toast(f"✨ Recolectores: +{recursos_rec} Æ")
+        rec_rec = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
+        st.session_state.recursos_jefe += rec_rec
 
-        # Procesar Archivo
         if st.session_state.archivo_jefe:
             cartas_a_des = st.session_state.archivo_jefe.copy()
             st.session_state.archivo_jefe = [] 
@@ -91,29 +88,23 @@ def mostrar_tablero():
                 if c['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                     c['def_actual'] = c.get('defensa', 0)
                     st.session_state.mesa.append(c)
-                else:
-                    st.session_state.descarte.append(c)
+                else: st.session_state.descarte.append(c)
             st.session_state.ultimas_desarchivadas = cartas_a_des
 
-        # Mover carta activa anterior
         if st.session_state.carta_activa:
             c_act = st.session_state.carta_activa
             if c_act['tipo'] in ["CRIATURA", "ARTEFACTO"]:
                 c_act['def_actual'] = c_act.get('defensa', 0)
                 st.session_state.mesa.append(c_act)
-            else:
-                st.session_state.descarte.append(c_act)
+            else: st.session_state.descarte.append(c_act)
 
-        # Revelar nueva y regla Sin Presa
         if st.session_state.mazo:
             nueva = st.session_state.mazo.pop(0)
             st.session_state.carta_activa = nueva
             marea_ya_cambio = procesar_habilidades_carta(nueva, marea_ya_cambio)
-            
             hay_p = any(c.get('presa') for c in st.session_state.mesa if c['tipo']=="CRIATURA")
             if not (nueva.get('presa') or hay_p):
                 st.session_state.recursos_jefe += 1
-                st.toast("💎 Sin Presa: +1 Æ")
             st.rerun()
 
     # --- 2. TABLA RESUMEN ---
@@ -132,12 +123,13 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. GESTIÓN MANUAL (Configuración Rectangular/Circular) ---
+    # --- 3. GESTIÓN MANUAL (Botones Cuadrados) ---
+    # Usamos columnas para posicionar, pero el CSS controlará que sean cuadrados
     c_e1, c_m1, c_m2, c_e2 = st.columns([1, 1, 1, 1])
     with c_m1:
-        st.button("➖", key="btn_manual_sub", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
+        st.button("➖", key="btn_manual_sub", on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
     with c_m2:
-        st.button("➕", key="btn_manual_add", use_container_width=True, on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
+        st.button("➕", key="btn_manual_add", on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
 
     st.divider()
 
