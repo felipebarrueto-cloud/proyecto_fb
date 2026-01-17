@@ -5,7 +5,6 @@ import marea
 RUTA_BASE = "proyecto_keyforge/"
 
 def procesar_habilidades_carta(carta, marea_ya_cambio):
-    """Procesa ámbar, marea y habilidades de cartas"""
     if 'archivo_jefe' not in st.session_state:
         st.session_state.archivo_jefe = []
     st.session_state.recursos_jefe += carta.get('ambar_regalo', 0)
@@ -25,53 +24,47 @@ def mostrar_tablero():
     if 'ultimas_desarchivadas' not in st.session_state:
         st.session_state.ultimas_desarchivadas = []
 
-    # --- CSS: BOTONES CUADRADOS EN FILA HORIZONTAL ---
+    # --- CSS DEFINITIVO PARA MÓVIL (BOTONES LADO A LADO) ---
     st.markdown("""
         <style>
-            /* Reset General de Botones */
+            /* Reset de botones generales */
             div.stButton > button {
                 background-color: #1a1c23 !important;
                 color: #ffffff !important;
                 border: 1px solid #333 !important;
             }
 
-            /* 1. ESTILO CUADRADO FIJO */
-            button[key*="btn_manual"] {
-                width: 50px !important;
-                height: 50px !important;
-                min-width: 50px !important;
-                max-width: 50px !important;
-                border-radius: 8px !important;
-                font-size: 24px !important;
+            /* 1. CONTENEDOR FLEXBOX FORZADO */
+            /* Usamos una clase personalizada para identificar nuestro bloque de botones */
+            .flex-container {
                 display: flex !important;
-                align-items: center !important;
+                flex-direction: row !important;
                 justify-content: center !important;
-            }
-
-            /* 2. FORZAR FILA HORIZONTAL (FLEXBOX) */
-            /* Este selector busca el contenedor de los botones manuales */
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) {
-                display: flex !important;
-                flex-direction: row !important; /* Fuerza la fila */
-                flex-wrap: nowrap !important;   /* Evita el salto de línea */
-                justify-content: center !important; /* Centra el grupo */
                 align-items: center !important;
-                gap: 15px !important; /* Espacio entre los dos cuadrados */
+                gap: 20px !important;
                 width: 100% !important;
+                margin: 10px 0 !important;
             }
 
-            /* Ajuste para que las columnas de Streamlit no ocupen el 100% en móvil */
-            [data-testid="stHorizontalBlock"]:has(button[key*="btn_manual"]) div[data-testid="column"] {
-                width: auto !important;
-                flex: 0 1 auto !important;
+            /* 2. ESTILO CUADRADO FIJO */
+            /* Apuntamos a los botones dentro de nuestro contenedor manual */
+            .flex-container div.stButton > button {
+                width: 60px !important;
+                height: 60px !important;
+                min-width: 60px !important;
+                max-width: 60px !important;
+                border-radius: 10px !important;
+                font-size: 26px !important;
+                padding: 0 !important;
+                line-height: 60px !important;
             }
 
-            /* Estilo Tabla Resumen */
+            /* Tabla de Resumen */
             .compact-table { width: 100%; border-collapse: collapse; background: #1a1c23; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
-            .compact-table td { border: 1px solid #333; padding: 8px 4px; text-align: center; }
-            .label-top { color: #888; font-size: 10px; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 2px; }
-            .value-bottom { color: #ffffff; font-size: 18px; font-weight: bold; display: block; }
-            .sub-info { color: #666; font-size: 9px; display: block; margin-top: 1px; }
+            .compact-table td { border: 1px solid #333; padding: 10px 4px; text-align: center; }
+            .label-top { color: #888; font-size: 11px; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 2px; }
+            .value-bottom { color: #ffffff; font-size: 19px; font-weight: bold; display: block; }
+            .sub-info { color: #666; font-size: 10px; display: block; margin-top: 1px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -79,7 +72,6 @@ def mostrar_tablero():
     if st.button("🎴 REVELAR SIGUIENTE CARTA", use_container_width=True):
         st.session_state.ultimas_desarchivadas = []
         marea.gestionar_avance_keyraken()
-        
         recursos_rec = sum(c['ambar_generado'] for c in st.session_state.mesa if c.get('no_hace_danio') and c.get('ambar_generado'))
         st.session_state.recursos_jefe += recursos_rec
 
@@ -123,16 +115,25 @@ def mostrar_tablero():
         </table>
     """, unsafe_allow_html=True)
 
-    # --- 3. GESTIÓN MANUAL (Fila de Botones Cuadrados) ---
-    # Usamos dos columnas pequeñas para colocar los botones lado a lado
-    col_izq, col_der = st.columns(2)
-    with col_izq:
+    # --- 3. GESTIÓN MANUAL (LA SOLUCIÓN AL APILAMIENTO) ---
+    # Creamos un contenedor div con una clase de CSS para forzar el Flexbox
+    st.markdown('<div class="flex-container">', unsafe_allow_html=True)
+    
+    # Creamos dos mini-columnas dentro del markdown (esta es la clave)
+    c1, c2 = st.columns(2)
+    with c1:
         st.button("➖", key="btn_manual_sub", on_click=lambda: st.session_state.update({"recursos_jefe": max(0, st.session_state.recursos_jefe - 1)}))
-    with col_der:
+    with c2:
         st.button("➕", key="btn_manual_add", on_click=lambda: st.session_state.update({"recursos_jefe": st.session_state.recursos_jefe + 1}))
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
+    # --- 4. ÁREA DE REVELADO Y MESA ---
+    if st.session_state.carta_activa:
+        st.image(RUTA_BASE + st.session_state.carta_activa['img'], use_container_width=True)
+    
     # --- 4. ÁREA DE REVELADO ---
     ultimas = st.session_state.get('ultimas_desarchivadas', [])
     if ultimas:
